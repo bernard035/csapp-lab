@@ -141,14 +141,18 @@ NOTES:
  *   Max ops: 14
  *   Rating: 1
  */
-int bitXor(int x, int y) { return 2; }
+int bitXor(int x, int y) {  // 异或：两数bit不同时为1并且不同时为0
+    return ~(~x & ~y) & ~(x & y);
+    // (~x & ~y)  两数为0的bit此时为1，再取反意味着提取两数不同时为0的bit
+    // 同理，~(x & y)是提取两数不同时为1的bit，再&就得到异或
+}
 /*
  * tmin - return minimum two's complement integer
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 4
  *   Rating: 1
  */
-int tmin(void) { return 2; }
+int tmin(void) { return 1 << 31; }
 // 2
 /*
  * isTmax - returns 1 if x is the maximum, two's complement number,
