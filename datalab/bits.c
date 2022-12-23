@@ -142,9 +142,9 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {  // 异或：两数bit不同时为1并且不同时为0
-    return ~(~x & ~y) & ~(x & y);
-    // (~x & ~y)  两数为0的bit此时为1，再取反意味着提取两数不同时为0的bit
-    // 同理，~(x & y)是提取两数不同时为1的bit，再&就得到异或
+  return ~(~x & ~y) & ~(x & y);
+  // (~x & ~y)  两数为0的bit此时为1，再取反意味着提取两数不同时为0的bit
+  // 同理，~(x & y)是提取两数不同时为1的bit，再&就得到异或
 }
 /*
  * tmin - return minimum two's complement integer
@@ -162,7 +162,7 @@ int tmin(void) { return 1 << 31; }
  *   Rating: 1
  */
 int isTmax(int x) {
-    return !(0x7fffffff ^ x);  // !(x^y) 等效与 等于
+  return !(0x7fffffff ^ x);  // !(x^y) 等效与 等于
 }
 /*
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
