@@ -195,7 +195,14 @@ int negate(int x) { return ~x + 1; }
  *   Max ops: 15
  *   Rating: 3
  */
-int isAsciiDigit(int x) { return 2; }
+int isAsciiDigit(int x) {
+  int sign = 1 << 31;
+  int upperBound = ~(sign | 0x39);  // 加上比0x39大的数后符号由正变负
+  int lowerBound = ~0x30;           // 加上比0x30小的值时是负数
+  upperBound = sign & (upperBound + x) >> 31;
+  lowerBound = sign & (lowerBound + 1 + x) >> 31;
+  return !(upperBound | lowerBound);
+}
 /*
  * conditional - same as x ? y : z
  *   Example: conditional(2,4,5) = 4
@@ -203,7 +210,11 @@ int isAsciiDigit(int x) { return 2; }
  *   Max ops: 16
  *   Rating: 3
  */
-int conditional(int x, int y, int z) { return 2; }
+int conditional(int x, int y, int z) {
+  x = !!x;     // 变成bool
+  x = ~x + 1;  // 1则变负
+  return (x & y) | (~x & z);
+}
 /*
  * isLessOrEqual - if x <= y  then return 1, else return 0
  *   Example: isLessOrEqual(4,5) = 1.
@@ -211,7 +222,20 @@ int conditional(int x, int y, int z) { return 2; }
  *   Max ops: 24
  *   Rating: 3
  */
-int isLessOrEqual(int x, int y) { return 2; }
+int isLessOrEqual(int x, int y) {
+  int negX = ~x + 1;               // -x
+  int addX = negX + y;             // y-x
+  int checkSign = addX >> 31 & 1;  // y-x的符号
+  int leftBit = 1 << 31;           // 最大位为1的32位有符号数
+  int xLeft = x & leftBit;         // x的符号
+  int yLeft = y & leftBit;         // y的符号
+  int bitXor = xLeft ^ yLeft;  // x和y符号相同标志位，相同为0不同为1
+  bitXor = (bitXor >> 31) & 1;  // 符号相同标志位格式化为0或1
+  return ((!bitXor) & (!checkSign)) | (bitXor & (xLeft >> 31));
+  // 返回1有两种情况：
+  // 1. 符号相同 y-x 且 y-x>=0
+  // 2. 符号不同 x<0
+}
 // 4
 /*
  * logicalNeg - implement the ! operator, using all of
