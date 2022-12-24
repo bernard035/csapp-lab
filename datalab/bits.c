@@ -162,7 +162,8 @@ int tmin(void) { return 1 << 31; }
  *   Rating: 1
  */
 int isTmax(int x) {
-  return !(0x7fffffff ^ x);  // !(x^y) 等效与 等于
+  int tMax = ~(1 << 31);  // INT_MAX = 2的31次方 - 1
+  return !(tMax ^ x);     // !(x^y) 等效于 等于
 }
 /*
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -172,7 +173,11 @@ int isTmax(int x) {
  *   Max ops: 12
  *   Rating: 2
  */
-int allOddBits(int x) { return 2; }
+int allOddBits(int x) {
+  int mask = 0xAA + (0xAA << 8);  // 0xAA == 0b10101010
+  mask = mask + (mask << 16);     // 构造 0b10101010101010101010101010101010
+  return !(mask ^ (mask & x));    // check 奇数位是否逐位相同
+}
 /*
  * negate - return -x
  *   Example: negate(1) = -1.
@@ -180,7 +185,7 @@ int allOddBits(int x) { return 2; }
  *   Max ops: 5
  *   Rating: 2
  */
-int negate(int x) { return 2; }
+int negate(int x) { return ~x + 1; }
 // 3
 /*
  * isAsciiDigit - return 1 if 0x30 <= x <= 0x39 (ASCII codes for characters '0'
