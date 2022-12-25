@@ -164,10 +164,10 @@ int tmin(void) { return 1 << 31; }
 int isTmax(int x) {
   int i = x + 1;  // Tmin,1000...
   // TODO : implementation-defined behaviour
-  x = x + i;      // -1,1111...
-  x = ~x;         // 0,0000...
-  i = !i;         // exclude x = 0xffff...
-  x = x + i;      // exclude x = 0xffff...
+  x = x + i;  // -1,1111...
+  x = ~x;     // 0,0000...
+  i = !i;     // exclude x = 0xffff...
+  x = x + i;  // exclude x = 0xffff...
   return !x;
 }
 /*
@@ -253,7 +253,8 @@ int isLessOrEqual(int x, int y) {
 int logicalNeg(int x) {
   // 只有0和INT_MIN的补码为本身，其余数为其相反数
   // INT_MIN的符号位为1，0的符号位为0
-  // 负数移位符号位不变  negative signed 用 >> 是implementation-defined behaviour
+  // 负数移位符号位不变  negative signed 用 >> 是implementation-defined
+  // behaviour
   return ((x | (~x + 1)) >> 31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
@@ -273,7 +274,7 @@ int howManyBits(int x) {
   int sign = x >> 31;
   x = (sign & ~x) | (~sign & x);
   // 如果x为正则不变，否则按位取反
-  //（这样好找最高位为1的，原来是最高位为0的，这样也将符号位去掉了）
+  // （这样好找最高位为1的，原来是最高位为0的，这样也将符号位去掉了）
 
   // 不断缩小范围
   b16 = !!(x >> 16) << 4;  // 高十六位是否有1
@@ -328,22 +329,22 @@ int floatFloat2Int(unsigned uf) {
   int sign = uf >> 31;
   int exp = ((uf & 0x7f800000) >> 23) - 127;
   int frac = (uf & 0x007fffff) | 0x00800000;
-  if (!(uf & 0x7fffffff)) return 0;
-
+  if (!(uf & 0x7fffffff)) return 0;  // 如果原浮点值为0则返回0；
   if (exp > 31) return 0x80000000;
-  if (exp < 0) return 0;
-
-  if (exp > 23)
+  // 如果真实指数大于31（frac部分是大于等于1的，1<<31位会覆盖符号位），返回规定的溢出值0x80000000u；
+  if (exp < 0) return 0;  // 如果exp<0（1右移x位,x>0，结果为0）则返回0
+  if (exp > 23)  // 首先把小数部分（23位）转化为整数（和23比较）
     frac <<= (exp - 23);
   else
     frac >>= (23 - exp);
 
-  if (!((frac >> 31) ^ sign))
+  if (!((frac >> 31) ^ sign))  // 判断是否溢出：如果和原符号相同则直接返回
     return frac;
   else if (frac >> 31)
+    // 否则如果结果为负（原来为正）则溢出返回越界指定值0x80000000u
     return 0x80000000;
   else
-    return ~frac + 1;
+    return ~frac + 1;  // 否则原来为负，结果为正，则需要返回其补码（相反数）
 }
 /*
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -359,7 +360,6 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-  // TODO : fix data
   int INF = 0xff << 23;
   int exp = x + 127;
   if (exp < 0 && exp > -24) {  // 考虑denorm就可以 23 是frac部分的位数
@@ -367,7 +367,7 @@ unsigned floatPower2(int x) {
   } else if (exp < -23) {
     return 0;
   }
-  if (exp >= 255) {
+  if (exp >= 255) {  // 如果exp大于等于255则为无穷大或越界了
     return INF;
   }
   return exp << 23;
