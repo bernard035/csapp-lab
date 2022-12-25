@@ -252,9 +252,10 @@ int isLessOrEqual(int x, int y) {
 int logicalNeg(int x) {
   // 只有0和INT_MIN的补码为本身，其余数为其相反数
   // INT_MIN的符号位为1，0的符号位为0
-  // 负数移位符号位不变  negative signed 用 >> 是implementation-defined
-  // behaviour
-  return ((x | (~x + 1)) >> 31) + 1;
+  // 负数移位 符号位不变是GCC的实现
+  // 但负数移位是implementation-defined behaviour
+  // 为了跨平台，特判掉负数
+  return (x >> 31 & 1) | (((x | (~x + 1)) >> 31) + 1);
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
