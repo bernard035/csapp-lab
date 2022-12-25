@@ -163,6 +163,7 @@ int tmin(void) { return 1 << 31; }
  */
 int isTmax(int x) {
   int i = x + 1;  // Tmin,1000...
+  // TODO : implementation-defined behaviour
   x = x + i;      // -1,1111...
   x = ~x;         // 0,0000...
   i = !i;         // exclude x = 0xffff...
@@ -252,7 +253,7 @@ int isLessOrEqual(int x, int y) {
 int logicalNeg(int x) {
   // 只有0和INT_MIN的补码为本身，其余数为其相反数
   // INT_MIN的符号位为1，0的符号位为0
-  // 负数移位符号位不变
+  // 负数移位符号位不变  negative signed 用 >> 是implementation-defined behaviour
   return ((x | (~x + 1)) >> 31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
@@ -358,11 +359,16 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-  if (x <= -150)
+  // TODO : fix data
+  int INF = 0xff << 23;
+  int exp = x + 127;
+  if (exp < 0 && exp > -24) {  // 考虑denorm就可以 23 是frac部分的位数
+    return 0x00040000 >> (~exp + 1);
+  } else if (exp < -23) {
     return 0;
-  else if (x <= -127)
-    return (1 << 23) >> (-126 - x);
-  else if (x <= 127)
-    return (0x7f + x) << 23;
-  return 0x7f800000u;  //无穷
+  }
+  if (exp >= 255) {
+    return INF;
+  }
+  return exp << 23;
 }
