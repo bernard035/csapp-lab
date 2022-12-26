@@ -162,7 +162,7 @@ int tmin(void) { return 1 << 31; }
  *   Rating: 1
  */
 int isTmax(int x) {
-  // 原理：0x7fffffff 取反之后的结果 0x80000000 与 0 是唯二的 两个补码是自身的树
+  // 原理：0x7fffffff 取反之后的结果 0x80000000 与 0 是唯二的 两个补码是自身的 数
   int negate1 = ~x;            // 取反
   int negate2 = ~negate1 + 1;  // 取取反结果的补码
   return (!(negate2 ^ negate1)) & !!negate1;
