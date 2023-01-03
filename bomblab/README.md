@@ -669,6 +669,10 @@ int func4(int target, int step, int limit) {
 2. 生成一个新的字符串str，由output每个字符&0xf作为maduiersnfotvbyl下标得到
 3. str必须为flyers
 
+我们输入的每个字符，都会取最低4位，然后转换成数字来作为长字符串 "maduiersnfotvbylSo you think you can stop the bomb with ctrl-c, do you?"的索引，最后依次取出的字符就是"flyers"。
+
+所以，找出"flyers"在长字符串中的索引分别是:9, 15, 14, 5, 6, 7。为了凑成字符，对每个加上64恰好都是大写字母的ascii码:73, 79, 78, 69, 70, 71。
+
 通过枚举ascii letters，可以找到六个&0xf分别为 9 15 14 5 6 7的字符：
 
 ```
@@ -680,7 +684,7 @@ int func4(int target, int step, int limit) {
 7 : g w G W
 ```
 
-任意组合即可
+其他合法字符亦可，任意组合即可
 
 ### c-like code
 
@@ -726,6 +730,239 @@ void phase_5(char* output) {
     explode_bomb();
   }
 }
+```
+
+## phase_6
+
+### asm code
+
+```s
+00000000004010f4 <phase_6>:
+  4010f4:	41 56                	push   %r14
+  4010f6:	41 55                	push   %r13
+  4010f8:	41 54                	push   %r12
+  4010fa:	55                   	push   %rbp
+  4010fb:	53                   	push   %rbx
+  4010fc:	48 83 ec 50          	sub    $0x50,%rsp
+  401100:	49 89 e5             	mov    %rsp,%r13
+  401103:	48 89 e6             	mov    %rsp,%rsi
+  401106:	e8 51 03 00 00       	callq  40145c <read_six_numbers>
+  40110b:	49 89 e6             	mov    %rsp,%r14
+  40110e:	41 bc 00 00 00 00    	mov    $0x0,%r12d # i = 0
+  401114:	4c 89 ed             	mov    %r13,%rbp
+  401117:	41 8b 45 00          	mov    0x0(%r13),%eax
+  40111b:	83 e8 01             	sub    $0x1,%eax
+  40111e:	83 f8 05             	cmp    $0x5,%eax
+  401121:	76 05                	jbe    401128 <phase_6+0x34>
+  401123:	e8 12 03 00 00       	callq  40143a <explode_bomb>
+  401128:	41 83 c4 01          	add    $0x1,%r12d # ++i
+  40112c:	41 83 fc 06          	cmp    $0x6,%r12d # == 6 外层break
+  401130:	74 21                	je     401153 <phase_6+0x5f>
+  401132:	44 89 e3             	mov    %r12d,%ebx
+  401135:	48 63 c3             	movslq %ebx,%rax # i = j
+  401138:	8b 04 84             	mov    (%rsp,%rax,4),%eax
+  40113b:	39 45 00             	cmp    %eax,0x0(%rbp)
+  40113e:	75 05                	jne    401145 <phase_6+0x51>
+  401140:	e8 f5 02 00 00       	callq  40143a <explode_bomb>
+  401145:	83 c3 01             	add    $0x1,%ebx  # ++j
+  401148:	83 fb 05             	cmp    $0x5,%ebx  # <=5 内层break
+  40114b:	7e e8                	jle    401135 <phase_6+0x41>
+  40114d:	49 83 c5 04          	add    $0x4,%r13
+  401151:	eb c1                	jmp    401114 <phase_6+0x20>
+  401153:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
+  401158:	4c 89 f0             	mov    %r14,%rax
+  40115b:	b9 07 00 00 00       	mov    $0x7,%ecx
+  401160:	89 ca                	mov    %ecx,%edx
+  401162:	2b 10                	sub    (%rax),%edx
+  401164:	89 10                	mov    %edx,(%rax)
+  401166:	48 83 c0 04          	add    $0x4,%rax
+  40116a:	48 39 f0             	cmp    %rsi,%rax
+  40116d:	75 f1                	jne    401160 <phase_6+0x6c>
+  40116f:	be 00 00 00 00       	mov    $0x0,%esi
+  401174:	eb 21                	jmp    401197 <phase_6+0xa3>
+  401176:	48 8b 52 08          	mov    0x8(%rdx),%rdx
+  40117a:	83 c0 01             	add    $0x1,%eax
+  40117d:	39 c8                	cmp    %ecx,%eax
+  40117f:	75 f5                	jne    401176 <phase_6+0x82>
+  401181:	eb 05                	jmp    401188 <phase_6+0x94>
+  401183:	ba d0 32 60 00       	mov    $0x6032d0,%edx
+  401188:	48 89 54 74 20       	mov    %rdx,0x20(%rsp,%rsi,2)
+  40118d:	48 83 c6 04          	add    $0x4,%rsi
+  401191:	48 83 fe 18          	cmp    $0x18,%rsi
+  401195:	74 14                	je     4011ab <phase_6+0xb7>
+  401197:	8b 0c 34             	mov    (%rsp,%rsi,1),%ecx
+  40119a:	83 f9 01             	cmp    $0x1,%ecx
+  40119d:	7e e4                	jle    401183 <phase_6+0x8f>
+  40119f:	b8 01 00 00 00       	mov    $0x1,%eax
+  4011a4:	ba d0 32 60 00       	mov    $0x6032d0,%edx
+  4011a9:	eb cb                	jmp    401176 <phase_6+0x82>
+  4011ab:	48 8b 5c 24 20       	mov    0x20(%rsp),%rbx
+  4011b0:	48 8d 44 24 28       	lea    0x28(%rsp),%rax
+  4011b5:	48 8d 74 24 50       	lea    0x50(%rsp),%rsi
+  4011ba:	48 89 d9             	mov    %rbx,%rcx
+  4011bd:	48 8b 10             	mov    (%rax),%rdx
+  4011c0:	48 89 51 08          	mov    %rdx,0x8(%rcx)
+  4011c4:	48 83 c0 08          	add    $0x8,%rax
+  4011c8:	48 39 f0             	cmp    %rsi,%rax
+  4011cb:	74 05                	je     4011d2 <phase_6+0xde>
+  4011cd:	48 89 d1             	mov    %rdx,%rcx
+  4011d0:	eb eb                	jmp    4011bd <phase_6+0xc9>
+  4011d2:	48 c7 42 08 00 00 00 	movq   $0x0,0x8(%rdx)
+  4011d9:	00 
+  4011da:	bd 05 00 00 00       	mov    $0x5,%ebp
+  4011df:	48 8b 43 08          	mov    0x8(%rbx),%rax
+  4011e3:	8b 00                	mov    (%rax),%eax
+  4011e5:	39 03                	cmp    %eax,(%rbx)
+  4011e7:	7d 05                	jge    4011ee <phase_6+0xfa>
+  4011e9:	e8 4c 02 00 00       	callq  40143a <explode_bomb>
+  4011ee:	48 8b 5b 08          	mov    0x8(%rbx),%rbx
+  4011f2:	83 ed 01             	sub    $0x1,%ebp
+  4011f5:	75 e8                	jne    4011df <phase_6+0xeb>
+  4011f7:	48 83 c4 50          	add    $0x50,%rsp
+  4011fb:	5b                   	pop    %rbx
+  4011fc:	5d                   	pop    %rbp
+  4011fd:	41 5c                	pop    %r12
+  4011ff:	41 5d                	pop    %r13
+  401201:	41 5e                	pop    %r14
+  401203:	c3                   	retq   
+  ```
+
+### analyze
+
+1. 需要输入6个数字
+2. 第一个循环对这个整数数组中的值是否相同做了嵌套循环的判断，如果相同，就会触发炸弹
+3. 第二个循环修改了整数数组的值：`for i = 0 -> 5 :  array[i] = 7 - array[i]`；
+4. 第三个循环根据可以嵌套解指针的结构（链表）构造了一个指针数组：根据array的值，取到对应位置的listnode，并由ptr_array存储；
+5. 第四个循环对指针数组做了修改：链表重排；
+6. 第五个循环对嵌套解指针的结构（链表）进行是否为降序判断。
+
+该链表的地址和值可以通过gdb查出：
+
+```
+0x6032d0 -> 0x6032e0 -> 0x6032f0 -> 0x603300 -> 0x603310 -> 0x603320
+332         168         924         691         477         443
+```
+
+这里有一个细节，第一个循环中将 `eax -= 1`，然后和5比较通过 `jbe` 跳转，目的是防止 `eax` 取负数和0，`eax -= 1`是防止取0，`jbe`防止取负数。
+
+因为`jbe`跳转是用无符号数比较，负数在无符号数编码下是很大的数所以必然大于5，因此输入的数字范围是1-6。
+  
+因此`phase_6`就是链表排序，输入的数字为原链表位置，输入的次序为新链表的位置。
+
+又因为第二个循环对`array`中的每个数字 `7 - array[i]`，因此输入的数字需要将链表重排成为升序。
+
+原链表的从小到大顺序是 5 6 1 2 3 4， 重排后 4 3 2 1 6 5。
+
+答案为`4 3 2 1 6 5`
+
+### c-like code
+
+```c
+phase_6(rdi) {
+  r13 = rsp;
+  rsi = rsp;
+  read_six_numbers(rdi, rsi);
+  r14 = rsp;
+  for (r12 = 0; r12 != 6; r12++) {
+    rbp = r13;
+    eax = *r13;
+    eax -= 1;
+    if (eax > 5) explode_bomb();
+    for (ebx = r12 + 1; ebx <= 5; ebx++) {
+      rax = ebx;
+      eax = *(rsp + rax * 4);
+      if (*rbp == eax) explode_bomb();
+    }
+    r13 += 4;
+  }
+
+  rsi = rsp + 0x18;
+  rax = r14;
+  ecx = 7;
+  for (rax = r14; rax != rsi; rax += 4) {
+    edx = ecx;
+    eax -= *rax;
+    *rax = edx;
+  }
+
+  for (rsi = 0; rsi != 0x18; rsi += 4) {
+    ecx = *(rsp + rsi);
+    if (ecx <= 1)
+      edx = 0x6032d0;
+    else {
+      edx = 0x6032d0;
+      for (eax = 1; eax != ecx; eax++) {
+        rdx = *(rdx + 8);
+      }
+    }
+    *(rsp + 2 * rsi + 20) = rdx;
+  }
+
+  rbx = *(rsp + 0x20);
+  rcx = rbx;
+  for (rax = rsp + 0x28; rax != rsp + 0x50; rax += 8) {
+    rdx = *rax;
+    *(rcx + 8) = rdx;
+    rcx = rdx;
+  }
+
+  *(rdx + 8) = 0;
+  for (ebp = 5; ebp != 0; ebp -= 1) {
+    rax = *(rbx + 0x8);
+    eax = *rax;
+    if (eax < *(rbx)) explode_bomb();
+    rbx = *(rbx + 8);
+  }
+
+// 整理
+typedef struct {
+  int val;
+  ListNode* next;
+} ListNode;
+
+void phase_6(char* output) {
+  int array[6];
+  ListNode* node_array[6];
+  read_six_numbers(output, array);
+  // 数字范围必须为1-6且互不重复
+  for (int i = 0; i != 6; i++) {
+    int num = array[i];
+    num--;
+    if ((unsigned int)num > 5)  // 最大为6
+      explode_bomb();
+    for (int j = i + 1; j <= 5; j++) {
+      if (array[i] == array[j])  // 每个元素都不重复
+        explode_bomb();
+    }
+  }
+  // 修改 array
+  for (int i = 0; i < 6; i++) {
+    array[i] = (7 - array[i]);
+  }
+  // 生成 node_array
+  for (int i = 0; i < 6; i++) {
+    int cur = array[i];
+    ListNode* node = 0x6032d0;  // 链表head
+    if (cur > 1) {
+      for (int j = 1; j < cur; j++) {
+        node = node->next;
+      }
+    }
+    node_array[i] = node;
+  }
+  for (int i = 0; i < 5; i++) {
+    node_array[i]->next = node_array[i + 1];
+  }
+  // 0x6032d0 0x6032e0 0x6032f0 0x603300 0x603310 0x603320
+  // 332      168      924      691      477      443
+  // 6        5        4        3        2        1
+  ListNode* ptr = node_array[0];
+  for (int i = 5; i > 0; i--) {
+    if (ptr->val < ptr->next->val) explode_bomb();
+    ptr = ptr->next;
+  }
+}
+
 ```
 
 ## reference
