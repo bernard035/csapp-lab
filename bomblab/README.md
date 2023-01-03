@@ -9,6 +9,8 @@ gdb bomb
 
 ## phase_1
 
+### asm code
+
 ```s
 0000000000400ee0 <phase_1>:
   400ee0:       48 83 ec 08             sub    $0x8,%rsp
@@ -20,6 +22,8 @@ gdb bomb
   400ef7:       48 83 c4 08             add    $0x8,%rsp
   400efb:       c3                      retq
 ```
+
+### analyze
 
 这里把0x402400加载进%esi作为函数参数，然后调用了string_not_equal函数进行判断。
 紧接着调用test指令，如果eax为0也就是两个字符串相等就跳转到函数结尾，否则调用explode_bomb函数。
@@ -34,7 +38,32 @@ $1 = 0x402400 "Border relations with Canada have never been better."
 
 得到答案：`Border relations with Canada have never been better.`
 
+### c-like code
+
+```c
+// 汇编 to C
+phase_1(rdi) {
+	esi = 0x402400;
+	string_no_equal(rdi, esi);
+	if (eax == 0)
+		callq explode_bomb;
+	retq
+}
+
+// 整理
+void phase_1(char* output) {
+  if( string_not_equal(output, "Border relations with Canada have never been better.") == 0) 
+    explode_bomb();
+  return;
+}
+
+```
+
+
+
 ## phase_2
+
+### asm code
 
 ```s
 0000000000400efc <phase_2>:
@@ -66,6 +95,8 @@ $1 = 0x402400 "Border relations with Canada have never been better."
   400f42: c3                    retq   
 ```
 
+### analyze
+
 先用`sub $0x28, %rsp`分配了一个 40 bytes 的栈空间，然后调用函数read_six_numbers。
 
 定位到read_six_numbers，其中有一行callq 400bf0 <__isoc99_sscanf@plt>调用库函数sscanf。打印出$0x4025c3地址的字符串：
@@ -90,6 +121,10 @@ $2 = 0x4025c3 "%d %d %d %d %d %d"
 再根据je跳转，发现这里将%rsp+0x4和%rsp+0x18对应的值存入了寄存器，然后跳转到400f17，而这里将%rbx-4指向的数放入%eax后，对其乘以2再和%rbx对应的数进行比较，如果不相等就会引爆炸弹，否则就是一个循环。
 
 至此，我们可以确定这里是一个循环，并且每次都是将%rbx-4对应的值乘以2和%rbx对应的值进行比较，也就是说，每次都是将栈中前一个数的两倍和后一个数比较。因此，可以确定这六个数是以1开头倍增的数列。
+
+得到答案: `1 2 4 8 16 32`
+
+### c-like code
 
 ```c
 // 汇编 to C
@@ -154,9 +189,9 @@ void phase_2(char* output){
 ```
 
 
-得到答案: `1 2 4 8 16 32`
-
 ## phase_3
+
+### asm code
 
 ```s
 0000000000400f43 <phase_3>:
@@ -198,6 +233,8 @@ void phase_2(char* output){
   400fc9:	48 83 c4 18          	add    $0x18,%rsp
   400fcd:	c3                   	retq   
 ```
+
+### analyze
 
 开始调用了`sscanf`，和phase2中一样，根据`mov $0x4025cf,%esi`可判断`sscanf`函数参数：
 
@@ -252,6 +289,8 @@ switch索引结构中的内容可以通过gdb查看。
 7 327
 ```
 
+### c-like code
+
 ```c
 // 汇编 to C 
 phase_3(rdi) {
@@ -297,8 +336,9 @@ phase_3(rdi) {
 		explode_bomb();
 	retq;
 }
+
 // 整理
-void phase_3(char* output){
+void phase_3(char* output) {
     int x, y;
     if(sscanf(output, "%d %d", &x, &y) <= 1)
         explode_bomb();
