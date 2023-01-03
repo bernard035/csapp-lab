@@ -589,7 +589,144 @@ int func4(int target, int step, int limit) {
 }
 ```
 
+## phase_5
 
+### asm code
+
+```s
+0000000000401062 <phase_5>:
+  401062:	53                   	push   %rbx
+  401063:	48 83 ec 20          	sub    $0x20,%rsp
+  401067:	48 89 fb             	mov    %rdi,%rbx
+  40106a:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax               # 金丝雀
+  401071:	00 00 
+  401073:	48 89 44 24 18       	mov    %rax,0x18(%rsp)
+  401078:	31 c0                	xor    %eax,%eax                   # 清零
+  40107a:	e8 9c 02 00 00       	callq  40131b <string_length>      # 计算字符串长度
+  40107f:	83 f8 06             	cmp    $0x6,%eax
+  401082:	74 4e                	je     4010d2 <phase_5+0x70>
+  401084:	e8 b1 03 00 00       	callq  40143a <explode_bomb>
+  401089:	eb 47                	jmp    4010d2 <phase_5+0x70>
+  40108b:	0f b6 0c 03          	movzbl (%rbx,%rax,1),%ecx
+  40108f:	88 0c 24             	mov    %cl,(%rsp)
+  401092:	48 8b 14 24          	mov    (%rsp),%rdx
+  401096:	83 e2 0f             	and    $0xf,%edx                   # 取edx后四位
+  401099: 0f b6 92 b0 24 40 00  movzbl 0x4024b0(%rdx),%edx         # 将edx后四位作为0x4024b0字符数组的索引值
+  4010a0: 88 54 04 10           mov    %dl,0x10(%rsp,%rax,1)       # 依次拷贝字符数组到0x10((%rsp,%rax,1))
+  4010a4: 48 83 c0 01           add    $0x1,%rax                   # 循环计数+1
+  4010a8: 48 83 f8 06           cmp    $0x6,%rax                   # 循环计数和6比较，即循环6次
+  4010ac: 75 dd                 jne    40108b <phase_5+0x29>
+  4010ae: c6 44 24 16 00        movb   $0x0,0x16(%rsp)             # 字符串末尾添加"\0"
+  4010b3: be 5e 24 40 00        mov    $0x40245e,%esi              # 字符串常量
+  4010b8: 48 8d 7c 24 10        lea    0x10(%rsp),%rdi
+  4010bd: e8 76 02 00 00        callq  401338 <strings_not_equal>  # 和字符串常量比较
+  4010c2:	85 c0                	test   %eax,%eax
+  4010c4:	74 13                	je     4010d9 <phase_5+0x77>
+  4010c6:	e8 6f 03 00 00       	callq  40143a <explode_bomb>
+  4010cb:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+  4010d0:	eb 07                	jmp    4010d9 <phase_5+0x77>
+  4010d2:	b8 00 00 00 00       	mov    $0x0,%eax
+  4010d7:	eb b2                	jmp    40108b <phase_5+0x29>
+  4010d9:	48 8b 44 24 18       	mov    0x18(%rsp),%rax
+  4010de:	64 48 33 04 25 28 00 	xor    %fs:0x28,%rax
+  4010e5:	00 00 
+  4010e7:	74 05                	je     4010ee <phase_5+0x8c>
+  4010e9:	e8 42 fa ff ff       	callq  400b30 <__stack_chk_fail@plt> # 栈被破坏
+  4010ee:	48 83 c4 20          	add    $0x20,%rsp
+  4010f2:	5b                   	pop    %rbx
+  4010f3:	c3                   	retq   
+```
+
+### analyze
+
+查看`4010bd`处地址为`0x4024b0`的字符串常量。
+
+```gdb
+(gdb) x/s 0x4024b0
+0x4024b0 <array.3449>:	"maduiersnfotvbylSo you think you can stop the bomb with ctrl-c, do you?"
+```
+
+取output字符串的字符，然后逐次将每个字符与0xf与操作，得到的值做为`0x4024b0`处字符串的下标。
+
+与0xf与操作意味着能取到`0x4024b0`处字符串的范围是0-15。
+
+可以得到前16为字符串：maduiersnfotvbyl。
+
+通过for循环能够生成一个字符串，该字符串由output的 每个字符&0xf 来作为maduiersnfotvbyl的下标，来选择字符。
+
+然后*(rsp + 0x16) = 0是字符串结尾符，最后将该字符串与0x40245e处的字符串进行比较。
+
+0x40245e处的字符串：
+
+```gdb
+(gdb) x/s 0x40245e
+0x40245e:	"flyers"
+```
+
+该函数功能如下：
+
+1. output长度必须等于6
+2. 生成一个新的字符串str，由output每个字符&0xf作为maduiersnfotvbyl下标得到
+3. str必须为flyers
+
+通过枚举ascii letters，可以找到六个&0xf分别为 9 15 14 5 6 7的字符：
+
+```
+9 : i y I Y
+15: o O
+14: n N
+5 : e u E U
+6 : f v F V
+7 : g w G W
+```
+
+任意组合即可
+
+### c-like code
+
+```c
+// 汇编 to C
+phase_5(rdi) {
+  rbx = rdi;
+  eax = eax ^ eax;
+  eax = string_length(rdi);
+  if (eax == 6) {
+    goto 4010d2;
+  } else
+    explode_bomb();
+  for (eax = 0; eax != 6; eax++) {
+    ecx = rbx + rax;
+    *rsp = cl;
+    rdx = *rsp;
+    edx = edx & 0xf;
+    edx = *(rdx + 0x4024b0);
+    *(rsp + rax + 0x10) = dl;
+  }
+  *(rsp + 0x16) = 0;
+  esi = 0x40245e;
+  rdi = rsp + 10;
+  strings_not_equal(rdi, rsi);
+  if (eax != 0) {
+    explode_bomb();
+  }
+}
+
+// 整理
+const char g_str[16] = "maduiersnfotvbyl";
+void phase_5(char* output) {
+  char str[7];
+  if (string_length(output) != 6) {
+    explode_bomb();
+  }
+  for (int i = 0; i != 6; i++) {
+    str[i] = g_str[output[i] & 0xf];
+  }
+  str[7] = '\0';
+  if (string_not_equal(str, "flyers") != 0) {
+    explode_bomb();
+  }
+}
+```
 
 ## reference
 
