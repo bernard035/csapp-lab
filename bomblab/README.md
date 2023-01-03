@@ -2,6 +2,12 @@ This is an x86-64 bomb for self-study students.
 
 ## 准备工作
 
+题目提供了`bomb`和`bomb.c`两个文件，分别是已完成编译的可执行文件，以及展示了主函数大致结构的c文件。
+
+我们需要提供一个字符串文件，以实现对六个炸弹进行拆弹。
+
+我们可以使用的工具分别是反汇编和gdb调试。
+
 ```shell
 objdump -d ./bomb >> bomb.s
 gdb bomb
