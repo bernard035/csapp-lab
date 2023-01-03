@@ -377,6 +377,214 @@ void phase_3(char* output) {
 ```
 
 
+## phase_4
+
+### asm code
+
+```s
+000000000040100c <phase_4>:
+  40100c: 48 83 ec 18           sub    $0x18,%rsp
+  401010: 48 8d 4c 24 0c        lea    0xc(%rsp),%rcx
+  401015: 48 8d 54 24 08        lea    0x8(%rsp),%rdx
+  40101a: be cf 25 40 00        mov    $0x4025cf,%esi
+  40101f: b8 00 00 00 00        mov    $0x0,%eax
+  401024: e8 c7 fb ff ff        callq  400bf0 <__isoc99_sscanf@plt>
+  401029: 83 f8 02              cmp    $0x2,%eax
+  40102c: 75 07                 jne    401035 <phase_4+0x29>
+  40102e: 83 7c 24 08 0e        cmpl   $0xe,0x8(%rsp) # 第一个数 <= 0xe
+  401033: 76 05                 jbe    40103a <phase_4+0x2e> 
+  401035: e8 00 04 00 00        callq  40143a <explode_bomb>
+  40103a: ba 0e 00 00 00        mov    $0xe,%edx
+  40103f: be 00 00 00 00        mov    $0x0,%esi
+  401044: 8b 7c 24 08           mov    0x8(%rsp),%edi
+  401048: e8 81 ff ff ff        callq  400fce <func4>
+  40104d: 85 c0                 test   %eax,%eax      # 测试返回值是否为0，非0爆炸
+  40104f: 75 07                 jne    401058 <phase_4+0x4c>
+  401051: 83 7c 24 0c 00        cmpl   $0x0,0xc(%rsp)
+  401056: 74 05                 je     40105d <phase_4+0x51>
+  401058: e8 dd 03 00 00        callq  40143a <explode_bomb>
+  40105d: 48 83 c4 18           add    $0x18,%rsp
+  401061: c3                    retq   
+```
+
+```s
+0000000000400fce <func4>: 
+  400fce: sub    $0x8,%rsp                      # 分配栈帧
+  400fd2: mov    %edx,%eax                      # C             eax
+  400fd4: sub    %esi,%eax                      # C - B         更新 eax
+  400fd6: mov    %eax,%ecx                      # C - B         ecx 
+  400fd8: shr    $0x1f,%ecx                     # 右移 31 位， ecx 长为 32 位（也就是之前的最高位变为最低位，其余 31 位填充补 0），可以认为 ecx = 0
+  400fdb: add    %ecx,%eax                      # C - B         eax
+  400fdd: sar    %eax                           # 这里是一个缩写 sar $1,%eax (对应的机器码为 D1F8)  eax = (C-B)/2
+  400fdf: lea    (%rax,%rsi,1),%ecx             # (C+B)/2       ecx        
+  400fe2: cmp    %edi,%ecx                      # ecx 与 A 进行比较 
+  400fe4: jle    400ff2 <func4+0x24>            # ecx 小于等于 A 则跳转
+  400fe6: lea    -0x1(%rcx),%edx                # C = (C+B)/2 - 1
+  400fe9: callq  400fce <func4>                 # 递归调用
+  400fee: add    %eax,%eax                      # 递归返回值加倍
+  400ff0: jmp    401007 <func4+0x39>            # 跳转到 func 函数的出口处 
+  400ff2: mov    $0x0,%eax                      # eax = 0
+  400ff7: cmp    %edi,%ecx                      # ecx 与 A 进行比较
+  400ff9: jge    401007 <func4+0x39>            # eax 大于等于 A 则跳转
+  400ffb: lea    0x1(%rcx),%esi                 # B = ecx + 1
+  400ffe: callq  400fce <func4>                 # 递归调用
+  401003: lea    0x1(%rax,%rax,1),%eax          # 递归返回值加倍并再加上 1
+  401007: add    $0x8,%rsp                      # 释放栈帧
+  40100b: retq                                  # 函数返回
+```
+
+### analyze
+
+1. sscanf和上一题的格式字符串一样是"%d %d"。
+2. func4内部在调用func4，递归的汇编
+3. phase_4的功能：解析字符串为两个数字x、y，x必须小于等于14，调用func4，x、0、14分别为其参数，func4返回值必须为0，y必须为0
+4. func4的功能：二分法找出元素x，目标值在数组的前半部分则返回奇数，后半部分则返回偶数；找到元素x返回0；如果目标值在二分查找过程中一直在左半边，则会返回0。
+
+0 1 3 7一直在左半区
+
+有以下答案：
+```
+0 0
+1 0
+3 0
+7 0
+```
+
+### c-like code
+
+```c
+// 汇编 to C
+phase_4(rdi) {
+	# 省略分配栈上空间
+	rcx = rsp + 12;			# sscanf 参数 4
+	rdx = rsp + 8;			# sscanf 参数 3
+	rsi = 0x4025cf;			# sscanf 参数 2
+    rax = 0;
+	callq sscanf;
+	if (rax != 2) {			# sscanf 返回值判断
+		goto 401035;
+	}
+	if (0x8(rsp) <= 14) {	# 第一个数字
+		goto 40103a;
+	}
+401035:
+	goto explode_bomb;
+40103a:
+	edx = 14;			# func4 参数 3
+	rsi = 0;			# func4 参数 2
+	rdi = 0x8(rsp);		# func4 参数 1
+	goto func4;
+	if (rax != 0) {		# func4 返回值判断
+		goto 401058;
+	}
+	if (0xc(rsp) == 0) {	# # 第二个数字
+		goto 40105d;
+	}
+401058:
+	goto exlode_bomb;
+40105d:
+	return;
+}
+
+// 整理
+phase_4(rdi) {
+	rcx = rsp + 12;
+	rdx = rsp + 8;
+	rsi = 0x4025cf;
+	rax = 0;
+	rax = sscanf(rdi, rsi, rdx, rcx);
+	if (rax != 2) {
+		explode_bomb();
+	}
+	if (*(rsp + 8) <= 14) {
+    rdx = 14;
+    rsi = 0;
+    rdi = *(rsp + 8);
+    rax = func4(rdi, rsi, rdx);
+    if (rax != 0) explode_bomb();
+    if (*(rsp + 12) != 0) explode_bomb();
+	}
+	retq;
+}
+
+// 语义化
+void phase_4(char* input) {
+  int x, y;
+  int ret = sscanf(input, "%d %d", &x, &y);
+	if (ret != 2 || x > 14) {
+		explode_bomb();
+	} else {
+    int ret = func4(x, 0, 14);
+    if (ret != 0 || y != 0) {
+        explode_bomb();
+    }
+	}
+	return ;
+}
+
+// 汇编 to C
+func4(rdi, rsi, rdx) {
+	eax = edx;
+	eax -= esi;
+	ecx = eax;
+	ecx >>= 31;
+	eax += ecx;
+	eax >>= 1;				# 对eax一顿操作
+	ecx = rax + rsi;		# 对ecx一顿操作
+	if (ecx <= edi) {
+		goto 400ff2;
+	}
+	edx = rcx - 1;
+	goto func4;				# 递归
+	eax += eax;
+	goto 401007;
+400ff2:
+	eax = 0;
+	if (ecx >= edi) {		# 递归基
+		goto 401007;
+	}
+	esi = rcx + 1;
+	goto func4;				# 递归
+	eax = rax + rax + 1;
+401007:
+	return;
+}
+
+
+// 整理
+int func4(int x, int a, int b) {
+  int num = b - a;
+  num = (num + num >> 31) / 2;
+  int c = num + a;
+  if (c <= x) {
+  	if (c >= x) return 0;
+    return 2 * func4(x, num+1, b) + 1;
+  }
+  return 2 * func4(x, a, num-1);
+}
+
+// 语义化
+int func4(int target, int step, int limit) {
+  int temp = (limit - step) * 0.5;
+  int mid = temp + step;
+  if (mid > target) {
+    limit = mid - 1;
+    int ret1 = func4(target, step, limit);
+    return 2 * ret1;
+  } else {
+    if (mid >= target) {
+      return 0;
+    } else {
+      step = mid + 1;
+      int ret2 = func4(target, step, limit);
+      return (2 * ret2 + 1);
+    }
+  }
+}
+```
+
+
+
 ## reference
 
 1. [CSAPP Lab -- Bomb Lab](https://zhuanlan.zhihu.com/p/36614408)
