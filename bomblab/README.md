@@ -965,6 +965,127 @@ void phase_6(char* output) {
 
 ```
 
+## secret_phase
+
+隐藏关在`phase_defused`函数被调用，而`phase_defused`在每次通过一个phase时都会被执行
+
+### asm code
+
+```s
+00000000004015c4 <phase_defused>:
+  4015c4: 48 83 ec 78           sub    $0x78,%rsp
+  4015c8: 64 48 8b 04 25 28 00  mov    %fs:0x28,%rax
+  4015cf: 00 00 
+  4015d1: 48 89 44 24 68        mov    %rax,0x68(%rsp)
+  4015d6: 31 c0                 xor    %eax,%eax                  # 比较输入的字符串数目是否等于6，不等于则跳转至程序结束
+  4015d8: 83 3d 81 21 20 00 06  cmpl   $0x6,0x202181(%rip)        # 603760 <num_input_strings>
+  4015df: 75 5e                 jne    40163f <phase_defused+0x7b>
+  4015e1: 4c 8d 44 24 10        lea    0x10(%rsp),%r8
+  4015e6: 48 8d 4c 24 0c        lea    0xc(%rsp),%rcx
+  4015eb: 48 8d 54 24 08        lea    0x8(%rsp),%rdx
+  4015f0: be 19 26 40 00        mov    $0x402619,%esi             # phase_4 答案
+  4015f5: bf 70 38 60 00        mov    $0x603870,%edi             # "%d %d %s"
+  4015fa: e8 f1 f5 ff ff        callq  400bf0 <__isoc99_sscanf@plt>
+  4015ff: 83 f8 03              cmp    $0x3,%eax                  # 判断参数是否为3
+  401602: 75 31                 jne    401635 <phase_defused+0x71>
+  401604: be 22 26 40 00        mov    $0x402622,%esi             # “DrEvil”
+  401609: 48 8d 7c 24 10        lea    0x10(%rsp),%rdi
+  40160e: e8 25 fd ff ff        callq  401338 <strings_not_equal> # 字符串比较
+  401613: 85 c0                 test   %eax,%eax
+  401615: 75 1e                 jne    401635 <phase_defused+0x71>
+  401617: bf f8 24 40 00        mov    $0x4024f8,%edi
+  40161c: e8 ef f4 ff ff        callq  400b10 <puts@plt>
+  401621: bf 20 25 40 00        mov    $0x402520,%edi
+  401626: e8 e5 f4 ff ff        callq  400b10 <puts@plt>
+  40162b: b8 00 00 00 00        mov    $0x0,%eax
+  401630: e8 0d fc ff ff        callq  401242 <secret_phase>     # 调用secret_phase
+  401635: bf 58 25 40 00        mov    $0x402558,%edi            # 顺利通过前六个phase提示语
+  40163a: e8 d1 f4 ff ff        callq  400b10 <puts@plt>
+  40163f: 48 8b 44 24 68        mov    0x68(%rsp),%rax
+  401644: 64 48 33 04 25 28 00  xor    %fs:0x28,%rax
+  40164b: 00 00 
+  40164d: 74 05                 je     401654 <phase_defused+0x90>
+  40164f: e8 dc f4 ff ff        callq  400b30 <__stack_chk_fail@plt>
+  401654: 48 83 c4 78           add    $0x78,%rsp
+  401658: c3                    retq   
+```
+
+```s
+0000000000401242 <secret_phase>:
+  401242: 53                    push   %rbx
+  401243: e8 56 02 00 00        callq  40149e <read_line>
+  401248: ba 0a 00 00 00        mov    $0xa,%edx
+  40124d: be 00 00 00 00        mov    $0x0,%esi
+  401252: 48 89 c7              mov    %rax,%rdi
+  401255: e8 76 f9 ff ff        callq  400bd0 <strtol@plt>           # str to long
+  40125a: 48 89 c3              mov    %rax,%rbx                     # 将rax保存到rbx中 
+  40125d: 8d 40 ff              lea    -0x1(%rax),%eax               # eax = eax -1
+  401260: 3d e8 03 00 00        cmp    $0x3e8,%eax                   # cmp 1000, eax
+  401265: 76 05                 jbe    40126c <secret_phase+0x2a>    # if  eax <= 1000 then 跳过炸弹
+  401267: e8 ce 01 00 00        callq  40143a <explode_bomb>         # 炸弹
+  40126c: 89 de                 mov    %ebx,%esi                     # 传参
+  40126e: bf f0 30 60 00        mov    $0x6030f0,%edi                # 传参 
+  401273: e8 8c ff ff ff        callq  401204 <fun7>                 # 调用fun7
+  401278: 83 f8 02              cmp    $0x2,%eax                     # 比较返回值和2
+  40127b: 74 05                 je     401282 <secret_phase+0x40>    # 相等就跳转输出0x402438处的字符串并返回
+  40127d: e8 b8 01 00 00        callq  40143a <explode_bomb>         # 不等就爆炸
+  401282: bf 38 24 40 00        mov    $0x402438,%edi
+  401287: e8 84 f8 ff ff        callq  400b10 <puts@plt>
+  40128c: e8 33 03 00 00        callq  4015c4 <phase_defused>
+  401291: 5b                    pop    %rbx
+  401292: c3                    retq   
+```
+
+```s
+0000000000401204 <fun7>:
+  401204: 48 83 ec 08           sub    $0x8,%rsp
+  401208: 48 85 ff              test   %rdi,%rdi          # edi如果为0则跳转并返回-1
+  40120b: 74 2b                 je     401238 <fun7+0x34>
+  40120d: 8b 17                 mov    (%rdi),%edx        # 取出rdi地址的值赋给edx
+  40120f: 39 f2                 cmp    %esi,%edx          # 比较edx和esi的值
+  401211: 7e 0d                 jle    401220 <fun7+0x1c> # if edx <= esi(这就是strtol转换来的数字)，跳转
+  401213: 48 8b 7f 08           mov    0x8(%rdi),%rdi     # 否则执行递归  rdi = (rdi+8)
+  401217: e8 e8 ff ff ff        callq  401204 <fun7>      # 递归
+  40121c: 01 c0                 add    %eax,%eax          # 递归返回值*2
+  40121e: eb 1d                 jmp    40123d <fun7+0x39> # 跳转至返回
+  401220: b8 00 00 00 00        mov    $0x0,%eax          # 提前将eax置0,这其实是返回值
+  401225: 39 f2                 cmp    %esi,%edx          # 还是比较esi和edx
+  401227: 74 14                 je     40123d <fun7+0x39> # 如果相等就跳转并返回0
+  401229: 48 8b 7f 10           mov    0x10(%rdi),%rdi    # 如果不相等就 rdi = (rdi+16) 如果传参<36，此处rdi=8 
+  40122d: e8 d2 ff ff ff        callq  401204 <fun7>      # 递归2
+  401232: 8d 44 00 01           lea    0x1(%rax,%rax,1),%eax # 递归返回值 eax = 2*eax+1
+  401236: eb 05                 jmp    40123d <fun7+0x39> # 跳转至返回
+  401238: b8 ff ff ff ff        mov    $0xffffffff,%eax
+  40123d: 48 83 c4 08           add    $0x8,%rsp
+  401241: c3                    retq   
+```
+
+### analyze
+
+1. 判断输入是否为6个字符串，也即通过前六关才触发隐藏关检测。
+2. 通过gdb调试可知`esi`为"%d %d %s" 而`edi`则是我们phase_4输入的答案，%s无法匹配。
+3. 在第四关尾缀字符串`DrEvil`可触发隐藏关
+4. `secret_phase`调用`fun7`，`fun7`返回2才能通过 
+5. `fun7`中两次递归rdi的变化是不样的，那么为了返回2，递归调用的顺序应为`step3->step2->step1` 也就是`*rdi`的值先要　`*rdi > esi`  ,然后　`*rdi  < esi` ， 最后 `*rdi == esi`。而`esi`是我们输入的，`rdi`在第一次调用`fun7`的时候就是固定的一个数
+6. gdb查询`x /128xg 0x6030f0`可以发现这是一个二叉树的结构，每个节点第1个8字节存放数据，第2个8字节存放左子树地址，第3个8字节存放右子树位置。并且命令也有规律，nab，a代表层数，b代表从左至右第b个节点。![](https://upload-images.jianshu.io/upload_images/7004504-57297d89dc11d7d5.png)
+7. `fun7`中`edi`指向一个树的节点，令`edi`节点的值与我们读入的值进行比较。如果两者相等：返回0；如果前者大于后者：`rdi`移至左子树，返回`2 * rax`；如果后者大于前者：`rdi`移至右子树，返回`2 * rax + 1`。那么我们需要返回2，应该在最后一次调用返回0，倒数第二次调用返回`2 * rax + 1`，第一次调用返回`2 * rax`。换句话说，这个数应该在第三层，比父节点大且比根结节小。观察上图，唯一的答案是：0x16（22）
+
+
+
+### c-like code
+
+```c
+fun7(esi, void *rdi){
+  if(rdi == 0) return -1;
+  if(*rdi <= esi ){
+    if(*rdi == esi) return 0;                   // step 1
+    else a = fun7(esi, *(rdi+16));
+    return 2*a+1;                               // step 2
+  } else  return 2 * fun7(esi, *(rdi+8));       // step 3
+}
+```
+
+
 ## reference
 
 1. [CSAPP Lab -- Bomb Lab](https://zhuanlan.zhihu.com/p/36614408)
