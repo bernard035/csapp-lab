@@ -1087,6 +1087,250 @@ bernard@aqua:~/code/csapp/archlab/sim/pipe$ ./benchmark.pl
 Average CPE     15.18
 Score   0.0/60.0
 
+bernard@aqua:~/code/csapp/archlab/sim/pipe$ ./correctness.pl
+Simulating with instruction set simulator yis
+        ncopy
+0       OK
+1       OK
+2       OK
+3       OK
+4       OK
+5       OK
+6       OK
+7       OK
+8       OK
+9       OK
+10      OK
+11      OK
+12      OK
+13      OK
+14      OK
+15      OK
+16      OK
+17      OK
+18      OK
+19      OK
+20      OK
+21      OK
+22      OK
+23      OK
+24      OK
+25      OK
+26      OK
+27      OK
+28      OK
+29      OK
+30      OK
+31      OK
+32      OK
+33      OK
+34      OK
+35      OK
+36      OK
+37      OK
+38      OK
+39      OK
+40      OK
+41      OK
+42      OK
+43      OK
+44      OK
+45      OK
+46      OK
+47      OK
+48      OK
+49      OK
+50      OK
+51      OK
+52      OK
+53      OK
+54      OK
+55      OK
+56      OK
+57      OK
+58      OK
+59      OK
+60      OK
+61      OK
+62      OK
+63      OK
+64      OK
+128     OK
+192     OK
+256     OK
+68/68 pass correctness test
+bernard@aqua:~/code/csapp/archlab/sim/pipe$ ./benchmark.pl
+        ncopy
+0       18
+1       26      26.00
+2       33      16.50
+3       41      13.67
+4       48      12.00
+5       56      11.20
+6       63      10.50
+7       71      10.14
+8       74      9.25
+9       72      8.00
+10      79      7.90
+11      87      7.91
+12      94      7.83
+13      102     7.85
+14      109     7.79
+15      117     7.80
+16      124     7.75
+17      128     7.53
+18      125     6.94
+19      133     7.00
+20      140     7.00
+21      148     7.05
+22      155     7.05
+23      163     7.09
+24      170     7.08
+25      178     7.12
+26      181     6.96
+27      179     6.63
+28      186     6.64
+29      194     6.69
+30      201     6.70
+31      209     6.74
+32      216     6.75
+33      224     6.79
+34      231     6.79
+35      235     6.71
+36      232     6.44
+37      240     6.49
+38      247     6.50
+39      255     6.54
+40      262     6.55
+41      270     6.59
+42      277     6.60
+43      285     6.63
+44      288     6.55
+45      286     6.36
+46      293     6.37
+47      301     6.40
+48      308     6.42
+49      316     6.45
+50      323     6.46
+51      331     6.49
+52      338     6.50
+53      342     6.45
+54      339     6.28
+55      347     6.31
+56      354     6.32
+57      362     6.35
+58      369     6.36
+59      377     6.39
+60      384     6.40
+61      392     6.43
+62      395     6.37
+63      393     6.24
+64      400     6.25
+Average CPE     7.65
+Score   56.9/60.0
+bernard@aqua:~/code/csapp/archlab/sim/pipe$ cd ../ptest; make SIM=../pipe/psim
+./optest.pl -s ../pipe/psim 
+Simulating with ../pipe/psim
+  All 49 ISA Checks Succeed
+./jtest.pl -s ../pipe/psim 
+Simulating with ../pipe/psim
+Test jf-jmp-32-32 failed
+Test jf-jmp-32-64 failed
+Test jf-jmp-64-32 failed
+Test jf-jmp-64-64 failed
+Test jb-jmp-32-32 failed
+Test jb-jmp-32-64 failed
+Test jb-jmp-64-32 failed
+Test jb-jmp-64-64 failed
+Test jb-jle-32-32 failed
+Test jb-jle-32-64 failed
+Test jb-jle-64-32 failed
+Test jb-jle-64-64 failed
+Test jb-jl-32-32 failed
+Test jb-jl-32-64 failed
+Test jb-jl-64-32 failed
+Test jb-jl-64-64 failed
+Test jb-je-32-32 failed
+Test jb-je-32-64 failed
+Test jb-je-64-32 failed
+Test jb-je-64-64 failed
+Test jb-jne-32-32 failed
+Test jb-jne-32-64 failed
+Test jb-jne-64-32 failed
+Test jb-jne-64-64 failed
+Test jb-jge-32-32 failed
+Test jb-jge-32-64 failed
+Test jb-jge-64-32 failed
+Test jb-jge-64-64 failed
+Test jb-jg-32-32 failed
+Test jb-jg-32-64 failed
+Test jb-jg-64-32 failed
+Test jb-jg-64-64 failed
+Test jb-call-32-32 failed
+Test jb-call-32-64 failed
+Test jb-call-64-32 failed
+Test jb-call-64-64 failed
+  36/64 ISA Checks Failed
+./ctest.pl -s ../pipe/psim 
+Simulating with ../pipe/psim
+  All 22 ISA Checks Succeed
+./htest.pl -s ../pipe/psim 
+Simulating with ../pipe/psim
+  All 600 ISA Checks Succeed
+bernard@aqua:~/code/csapp/archlab/sim/ptest$ make SIM=../pipe/psim TFLAGS=-i
+./optest.pl -s ../pipe/psim -i
+Simulating with ../pipe/psim
+  All 58 ISA Checks Succeed
+./jtest.pl -s ../pipe/psim -i
+Simulating with ../pipe/psim
+Test jf-jmp-32-32 failed
+Test jf-jmp-32-64 failed
+Test jf-jmp-64-32 failed
+Test jf-jmp-64-64 failed
+Test jb-jmp-32-32 failed
+Test jb-jmp-32-64 failed
+Test jb-jmp-64-32 failed
+Test jb-jmp-64-64 failed
+Test jb-jle-32-32 failed
+Test jb-jle-32-64 failed
+Test jb-jle-64-32 failed
+Test jb-jle-64-64 failed
+Test jb-jl-32-32 failed
+Test jb-jl-32-64 failed
+Test jb-jl-64-32 failed
+Test jb-jl-64-64 failed
+Test jb-je-32-32 failed
+Test jb-je-32-64 failed
+Test jb-je-64-32 failed
+Test jb-je-64-64 failed
+Test jb-jne-32-32 failed
+Test jb-jne-32-64 failed
+Test jb-jne-64-32 failed
+Test jb-jne-64-64 failed
+Test jb-jge-32-32 failed
+Test jb-jge-32-64 failed
+Test jb-jge-64-32 failed
+Test jb-jge-64-64 failed
+Test jb-jg-32-32 failed
+Test jb-jg-32-64 failed
+Test jb-jg-64-32 failed
+Test jb-jg-64-64 failed
+Test jb-call-32-32 failed
+Test jb-call-32-64 failed
+Test jb-call-64-32 failed
+Test jb-call-64-64 failed
+Test ji-jmp-32-32 failed
+Test ji-jmp-32-64 failed
+Test ji-jmp-64-32 failed
+Test ji-jmp-64-64 failed
+  40/96 ISA Checks Failed
+./ctest.pl -s ../pipe/psim -i
+Simulating with ../pipe/psim
+  All 22 ISA Checks Succeed
+./htest.pl -s ../pipe/psim -i
+Simulating with ../pipe/psim
+  All 756 ISA Checks Succeed
+
 ```
 
 ## reference
