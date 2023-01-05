@@ -51,4 +51,8 @@ Usage: ./csim-ref [-hv] -s <s> -E <E> -b <b> -t <tracefile>
 
 ## reference
 
-1. [CSAPP实验之cache lab](https://zhuanlan.zhihu.com/p/79058089)
+1. [Cache Lab Implementation and Blocking](Cache_Lab_Implementation_and_Blocking.pdf)
+2. [CSAPP实验之cache lab](https://zhuanlan.zhihu.com/p/79058089)
+3. [《深入理解计算机系统》配套实验：Cache Lab](https://zhuanlan.zhihu.com/p/33846811)
+4. [CSAPP-Lab05 Cache Lab 深入解析](https://zhuanlan.zhihu.com/p/484657229)
+5. [请教CPU的cache中关于line,block,index等的理解？](https://www.zhihu.com/question/24612442/answer/156669729)
