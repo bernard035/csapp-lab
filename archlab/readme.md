@@ -1,6 +1,17 @@
+环境配置：
+
+```
+sudo apt install tcl tcl-dev tk tk-dev flex bison
+```
+
+
 ## A
 
+在`sim/misc`下，用Y86-64汇编代码实现`examples.c`中的三个代码。
+
 ### sum
+
+链表求和
 
 ```s
 # Execution begins at address 0
@@ -41,7 +52,24 @@ stack:
 
 ```
 
+编译并测试
+
+```bash
+bernard@aqua:~/code/csapp/archlab/solutions$ ../sim/misc/yas sum.ys 
+bernard@aqua:~/code/csapp/archlab/solutions$ ../sim/misc/yis sum.yo
+Stopped in 29 steps at PC = 0x13.  Status 'HLT', CC Z=1 S=0 O=0
+Changes to registers:
+%rax:   0x0000000000000000      0x0000000000000cba
+%rsp:   0x0000000000000000      0x0000000000000100
+
+Changes to memory:
+0x00f0: 0x0000000000000000      0x000000000000005b
+0x00f8: 0x0000000000000000      0x0000000000000013
+```
+
 ### rsum
+
+链表求和的递归实现
 
 ```s
 # rsum.ys by name1e5s
@@ -85,18 +113,8 @@ re:	    popq %r12
 stack:
 ```
 
-```bash
-bernard@aqua:~/code/csapp/archlab/solutions$ ../sim/misc/yas sum.ys 
-bernard@aqua:~/code/csapp/archlab/solutions$ ../sim/misc/yis sum.yo
-Stopped in 29 steps at PC = 0x13.  Status 'HLT', CC Z=1 S=0 O=0
-Changes to registers:
-%rax:   0x0000000000000000      0x0000000000000cba
-%rsp:   0x0000000000000000      0x0000000000000100
+编译并测试
 
-Changes to memory:
-0x00f0: 0x0000000000000000      0x000000000000005b
-0x00f8: 0x0000000000000000      0x0000000000000013
-```
 
 ```bash
 bernard@aqua:~/code/csapp/archlab/solutions$ ../sim/misc/yas rsum.ys 
@@ -121,6 +139,13 @@ Changes to memory:
 ```
 
 ### cblock
+
+数组赋值操作，返回值为原数组各项的按位异或
+
+本段代码可参考书上图4-7
+
+![alt](https://uploadfiles.nowcoder.com/compress/mw1000/images/20230106/794972751_1672943012465/750DB27939C97F99E704B6C3F0138087)
+
 
 ```s
 # Execution begins at address 0
@@ -177,6 +202,8 @@ stack:
 
 ```
 
+编译并测试
+
 ```bash
 bernard@aqua:~/code/csapp/archlab/solutions$ ../sim/misc/yas cblock.ys
 bernard@aqua:~/code/csapp/archlab/solutions$ ../sim/misc/yis cblock.yo
@@ -196,6 +223,14 @@ Changes to memory:
 ```
 
 ## B
+
+在`sim/seq`下，添加`IADDQ`指令，在`seq-full.hcl`文件中修改代码。
+
+注意需要更新一下编译环境：
+
+Makefile修改一下。第 20 行改为`TKINC=-isystem /usr/include/tcl8.6`，第 26 行改为`CFLAGS=-Wall -O2 -DUSE_INTERP_RESULT`
+
+注释掉`/sim/pipe/psim.c` 806、807行和`/sim/seq/ssim.c` 844、845行。即源代码中有`matherr`的一行和它的下一行
 
 ```bash
 bernard@aqua:~/code/csapp/archlab/sim/seq$ ./ssim -t ../y86-code/asumi.yo
@@ -312,6 +347,13 @@ Simulating with ../seq/ssim
 
 ## C
 
+Part C 在`sim/pipe`中进行。PIPE 是使用了转发技术的流水线化的Y86-64处理器。
+
+它相比 Part B 增加了流水线寄存器和流水线控制逻辑。
+
+和 Part B 一样，需要调整编译设置，并增加`IADDQ`指令。
+
+可以通过循环展开、剩余数据处理、消除气泡等优化。
 
 ```bash
 bernard@aqua:~/code/csapp/archlab/sim/pipe$ ./psim -t ../y86-code/asumi.yo
@@ -1086,7 +1128,26 @@ bernard@aqua:~/code/csapp/archlab/sim/pipe$ ./benchmark.pl
 64      913     14.27
 Average CPE     15.18
 Score   0.0/60.0
+```
 
+环境配置成功。
+
+[林夕的代码](https://gitee.com/lin-xi-269/csapplab/blob/master/lab4archlab/archlab-handout/sim/pipe/pipe-full.hcl)得分很高，但无法通过` cd ../ptest; make SIM=../pipe/psim`和`make SIM=../pipe/psim TFLAGS=-i`两项测试。
+
+经过我的实验，可以判断其代码的问题出在下面这一段：
+
+```hcl
+# Predict next value of PC 
+# JXX时我们选用小的值，这样往前跳就预测成功，往后跳就预测失败，这在循环很有用
+word f_predPC = [
+    f_icode == IJXX && f_ifun != UNCOND && f_valC < f_valP : f_valC;
+	f_icode == IJXX && f_ifun != UNCOND && f_valC >= f_valP : f_valP;
+	f_icode == ICALL : f_valC;
+	1 : f_valP;
+];
+```
+
+```bash
 bernard@aqua:~/code/csapp/archlab/sim/pipe$ ./correctness.pl
 Simulating with instruction set simulator yis
         ncopy
