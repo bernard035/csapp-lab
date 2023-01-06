@@ -1,3 +1,7 @@
+/*
+ * A Cache Simulator by Bernard
+ * 2023/1/6
+ */
 #include <getopt.h>
 #include <limits.h>
 #include <stdio.h>
@@ -7,145 +11,168 @@
 
 #include "cachelab.h"
 
-int h, v, s, E, b, S;  // 这个是我们模拟的参数，为了方便在函数里调用，设置成全局
+typedef struct CacheLine_ {
+  int valid;      // 有效位
+  int tag;        // 标记位
+  int time_tamp;  // 时间戳
+} CacheLine;
 
-int hit_count, miss_count,
-    eviction_count;  // 三个在 printSummary 函数中的参数，需要不断更新
+typedef struct Cache_ {
+  int S;
+  int E;
+  int B;
+  CacheLine **line;
+} Cache;
 
-char t[1000];  // 存 getopt 中选项内容，表示的是验证中需使用的trace文件名
+int hit_count = 0;  // 命中，要操作的数据在对应组的其中一行
+int miss_count = 0;  // 不命中次数，要操作的数据不在对应组的任何一行
+int eviction_count = 0;  // 驱赶次数，要操作的数据的对应组已满，进行了替换操作
 
-typedef struct {
-  int valid_bits;  // 合法位
-  int tag;         // 标记位
-  int stamp;       // 时间戳
-} cache_line, *cache_asso, **cache;
-// cache 模拟器的结构
+int print_detail = 0;  // 是否打印详细信息
 
-cache _cache_ = NULL;  // 声明一个空的结构体类型二维数组
+char t[1000];
+Cache *cache = NULL;
 
-// 打印 helper 内容的函数，-h 命令使用，内容可自定义
-void printUsage() {
-  printf(
-      "Usage: ./csim-ref [-hv] -s <num> -E <num> -b <num> -t <file>\n"
-      "Options:\n"
-      "  -h         Print this help message.\n"
-      "  -v         Optional verbose flag.\n"
-      "  -s <num>   Number of set index bits.\n"
-      "  -E <num>   Number of lines per set.\n"
-      "  -b <num>   Number of block offset bits.\n"
-      "  -t <file>  Trace file.\n\n"
-      "Examples:\n"
-      "  linux>  ./csim-ref -s 4 -E 1 -b 4 -t traces/yi.trace\n"
-      "  linux>  ./csim-ref -v -s 8 -E 2 -b 4 -t traces/yi.trace\n");
-}
-
-// 初始化cache的函数
-void init_cache() {
-  // 多维数组的开辟要一行行malloc
-  _cache_ = (cache)malloc(sizeof(cache_asso) * S);
-  for (int i = 0; i < S; ++i) {
-    _cache_[i] = (cache_asso)malloc(sizeof(cache_line) * E);
-    for (int j = 0; j < E; ++j) {
-      _cache_[i][j].valid_bits = 0;
-      _cache_[i][j].tag = -1;
-      _cache_[i][j].stamp = -1;
+void InitCache(int s, int E, int b) {
+  int S = 1 << s;
+  int B = 1 << b;
+  cache = (Cache *)malloc(sizeof(Cache));
+  cache->S = S;
+  cache->E = E;
+  cache->B = B;
+  cache->line = (CacheLine **)malloc(sizeof(CacheLine *) * S);
+  for (int i = 0; i < S; i++) {
+    cache->line[i] = (CacheLine *)malloc(sizeof(CacheLine) * E);
+    for (int j = 0; j < E; j++) {
+      cache->line[i][j].valid = 0;  // 初始时，高速缓存是空的
+      cache->line[i][j].tag = -1;
+      cache->line[i][j].time_tamp = 0;
     }
   }
 }
 
-void update(unsigned int address) {
-  // 索引地址位可以用位运算，-1U是最大整数，64是因为我电脑是64位
-  int setindex_add = (address >> b) & ((-1U) >> (64 - s));
-  int tag_add = address >> (b + s);
-
-  int max_stamp = INT_MIN;
-  int max_stamp_index = -1;
-
-  for (int i = 0; i < E; ++i) {  // 如果tag相同，就hit，重置时间戳
-    if (_cache_[setindex_add][i].tag == tag_add) {
-      _cache_[setindex_add][i].stamp = 0;
-      ++hit_count;
-      return;
-    }
+void FreeCache() {
+  int S = cache->S;
+  for (int i = 0; i < S; i++) {
+    free(cache->line[i]);
   }
-
-  for (int i = 0; i < E; ++i) {  // 查看有没有空行
-    if (_cache_[setindex_add][i].valid_bits == 0) {
-      _cache_[setindex_add][i].valid_bits = 1;
-      _cache_[setindex_add][i].tag = tag_add;
-      _cache_[setindex_add][i].stamp = 0;
-      ++miss_count;
-      return;
-    }
-  }
-  // 没有空行又没有hit就是要替换了
-  ++eviction_count;
-  ++miss_count;
-
-  for (int i = 0; i < E; ++i) {
-    if (_cache_[setindex_add][i].stamp > max_stamp) {
-      max_stamp = _cache_[setindex_add][i].stamp;
-      max_stamp_index = i;
-    }
-  }
-  _cache_[setindex_add][max_stamp_index].tag = tag_add;
-  _cache_[setindex_add][max_stamp_index].stamp = 0;
-  return;
+  free(cache->line);
+  free(cache);
 }
 
-void update_stamp() {
-  for (int i = 0; i < S; ++i)
-    for (int j = 0; j < E; ++j)
-      if (_cache_[i][j].valid_bits == 1) ++_cache_[i][j].stamp;
+int GetIndex(int op_s, int op_tag) {
+  for (int i = 0; i < cache->E; i++) {
+    if (cache->line[op_s][i].valid && cache->line[op_s][i].tag == op_tag)
+      return i;
+  }
+  return -1;
 }
 
-void parse_trace() {
-  FILE* fp = fopen(t, "r");  // 读取文件名
-  if (fp == NULL) {
-    printf("open error");
+int FindLRU(int op_s) {
+  int max_index = 0;
+  int max_stamp = 0;
+  for (int i = 0; i < cache->E; i++) {
+    if (cache->line[op_s][i].time_tamp > max_stamp) {
+      max_stamp = cache->line[op_s][i].time_tamp;
+      max_index = i;
+    }
+  }
+  return max_index;
+}
+
+int IsFull(int op_s) {
+  for (int i = 0; i < cache->E; i++) {
+    if (cache->line[op_s][i].valid == 0) return i;
+  }
+  return -1;
+}
+
+void Update(int i, int op_s, int op_tag) {
+  cache->line[op_s][i].valid = 1;
+  cache->line[op_s][i].tag = op_tag;
+  for (int k = 0; k < cache->E; k++)
+    if (cache->line[op_s][k].valid == 1) cache->line[op_s][k].time_tamp++;
+  cache->line[op_s][i].time_tamp = 0;
+}
+
+void UpdateInfo(int op_tag, int op_s) {
+  int index = GetIndex(op_s, op_tag);
+  if (index == -1) {
+    miss_count++;
+    if (print_detail) printf("miss\n");
+    int i = IsFull(op_s);
+    if (i == -1) {
+      eviction_count++;
+      if (print_detail) printf("eviction\n");
+      i = FindLRU(op_s);
+    }
+    Update(i, op_s, op_tag);
+  } else {
+    hit_count++;
+    if (print_detail) printf("hit\n");
+    Update(index, op_s, op_tag);
+  }
+}
+
+void GetTrace(int s, int E, int b) {
+  FILE *pFile;
+  pFile = fopen(t, "r");
+  if (pFile == NULL) {
     exit(-1);
   }
-
-  char operation;        // 命令开头的 I L M S
-  unsigned int address;  // 地址参数
-  int size;              // 大小
-  while (fscanf(fp, " %c %xu,%d\n", &operation, &address, &size) > 0) {
-    switch (operation) {
-      // case 'I': continue;	   // 不用写关于 I 的判断也可以
-      case 'L':
-        update(address);
+  char identifier;
+  unsigned address;
+  int size;
+  // Reading lines like " M 20,1" or "L 19,3"
+  while (fscanf(pFile, " %c %x,%d", &identifier, &address, &size) > 0) {
+    // 想办法先得到标记位和组序号
+    int op_tag = address >> (s + b);
+    int op_s = (address >> b) & ((unsigned)(-1) >> (8 * sizeof(unsigned) - s));
+    switch (identifier) {
+      case 'M':  // 一次存储一次加载
+        UpdateInfo(op_tag, op_s);
+        UpdateInfo(op_tag, op_s);
         break;
-      case 'M':
-        update(address);  // miss的话还要进行一次storage
+      case 'L':
+        UpdateInfo(op_tag, op_s);
+        break;
       case 'S':
-        update(address);
+        UpdateInfo(op_tag, op_s);
+        break;
     }
-    update_stamp();  // 更新时间戳
   }
-
-  fclose(fp);
-  for (int i = 0; i < S; ++i) free(_cache_[i]);
-  free(_cache_);  // malloc 完要记得 free 并且关文件
+  fclose(pFile);
 }
 
-//===============================================================
+void PrintHelp() {
+  printf("Usage: ./csim-ref [-hv] -s <num> -E <num> -b <num> -t <file>\n");
+  printf("Options:\n");
+  printf("-h         Print this help message.\n");
+  printf("-v         Optional print_detail flag.\n");
+  printf("-s <num>   Number of set index bits.\n");
+  printf("-E <num>   Number of lines per set.\n");
+  printf("-b <num>   Number of block offset bits.\n");
+  printf("-t <file>  Trace file.\n\n\n");
+  printf("Examples:\n");
+  printf("linux>  ./csim -s 4 -E 1 -b 4 -t traces/yi.trace\n");
+  printf("linux>  ./csim -v -s 8 -E 2 -b 4 -t traces/yi.trace\n");
+}
 
-int main(int argc, char* argv[]) {
-  h = 0;
-  v = 0;
-  hit_count = miss_count = eviction_count = 0;
-  int opt;  // 接收getopt的返回值
-
-  // getopt 第三个参数中，不可省略的选项字符后要跟冒号，这里h和v可省略
-  while (-1 != (opt = (getopt(argc, argv, "hvs:E:b:t:")))) {
+int main(int argc, char *argv[]) {
+  char opt;
+  int s, E, b;
+  /*
+   * s:S=2^s是组的个数
+   * E:每组中有多少行
+   * b:B=2^b每个缓冲块的字节数
+   */
+  while (EOF != (opt = getopt(argc, argv, "hvs:E:b:t:"))) {
     switch (opt) {
       case 'h':
-        h = 1;
-        printUsage();
-        break;
+        PrintHelp();
+        exit(0);
       case 'v':
-        v = 1;
-        printUsage();
+        print_detail = 1;
         break;
       case 's':
         s = atoi(optarg);
@@ -160,25 +187,13 @@ int main(int argc, char* argv[]) {
         strcpy(t, optarg);
         break;
       default:
-        printUsage();
-        break;
+        PrintHelp();
+        exit(-1);
     }
   }
-
-  if (s <= 0 || E <= 0 || b <= 0 || t == NULL)  // 如果选项参数不合格就退出
-    return -1;
-  S = 1 << s;  // S=2^s
-
-  FILE* fp = fopen(t, "r");
-  if (fp == NULL) {
-    printf("open error");
-    exit(-1);
-  }
-
-  init_cache();   // 初始化cache
-  parse_trace();  // 更新最终的三个参数
-
+  InitCache(s, E, b);  // 初始化一个cache
+  GetTrace(s, E, b);
+  FreeCache();
   printSummary(hit_count, miss_count, eviction_count);
-
   return 0;
 }
