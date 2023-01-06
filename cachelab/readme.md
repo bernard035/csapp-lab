@@ -49,6 +49,45 @@ Usage: ./csim-ref [-hv] -s <s> -E <E> -b <b> -t <tracefile>
     • -t <tracefile>: Name of the valgrind trace to replay
 ```
 
+通过全部测试用例
+
+```bash
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim -v -s 8 -E 2 -b 4 -t traces/yi.trace
+miss miss hit hit hit miss miss hit hit hits:5 misses:4 evictions:0
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim -s 1 -E 1 -b 1 -t traces/yi2.trace
+hits:9 misses:8 evictions:6
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim-ref -s 1 -E 1 -b 1 -t traces/yi2.trace
+hits:9 misses:8 evictions:6
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim -s 4 -E 2 -b 4 -t traces/yi.trace
+hits:4 misses:5 evictions:2
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim-ref -s 4 -E 2 -b 4 -t traces/yi.trace
+hits:4 misses:5 evictions:2
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim -s 2 -E 1 -b 4 -t traces/dave.trace
+hits:2 misses:3 evictions:1
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim-ref -s 2 -E 1 -b 4 -t traces/dave.trace
+hits:2 misses:3 evictions:1
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim -s 2 -E 1 -b 3 -t traces/trans.trace
+hits:167 misses:71 evictions:67
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim-ref -s 2 -E 1 -b 3 -t traces/trans.trace
+hits:167 misses:71 evictions:67
+ ⚡ root  ~/csapp-lab/cachelab   main ±   ./csim -s 2 -E 2 -b 3 -t traces/trans.trace
+hits:201 misses:37 evictions:29
+ ⚡ root  ~/csapp-lab/cachelab   main ±   ./csim-ref -s 2 -E 2 -b 3 -t traces/trans.trace
+hits:201 misses:37 evictions:29
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim -s 2 -E 4 -b 3 -t traces/trans.trace
+hits:212 misses:26 evictions:10
+ ⚡ root  ~/csapp-lab/cachelab   main ±  ./csim-ref -s 2 -E 4 -b 3 -t traces/trans.trace
+hits:212 misses:26 evictions:10
+ ⚡ root  ~/csapp-lab/cachelab   main ±   ./csim -s 5 -E 1 -b 5 -t traces/trans.trace
+hits:231 misses:7 evictions:0
+ ⚡ root  ~/csapp-lab/cachelab   main ±   ./csim-ref -s 5 -E 1 -b 5 -t traces/trans.trace
+hits:231 misses:7 evictions:0
+ ⚡ root  ~/csapp-lab/cachelab   main ±   ./csim -s 5 -E 1 -b 5 -t traces/long.trace
+hits:265189 misses:21775 evictions:21743
+ ⚡ root  ~/csapp-lab/cachelab   main ±   ./csim-ref -s 5 -E 1 -b 5 -t traces/long.trace
+hits:265189 misses:21775 evictions:21743
+```
+
 ## reference
 
 1. [Cache Lab Implementation and Blocking](Cache_Lab_Implementation_and_Blocking.pdf)
