@@ -40,12 +40,11 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
 }
 
 void solve_32(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j;
   // 这里为什么是8*8分块？因为
   // 我们的cache的Block大小为32字节，也就是8*sizeof(int)
   // ，一行访存八个正好达到了cache的极限了
-  for (i = 0; i < 32; i += 8) {    // 枚举每八行
-    for (j = 0; j < 32; j += 8) {  // 枚举每八列
+  for (int i = 0; i < 32; i += 8) {    // 枚举每八行
+    for (int j = 0; j < 32; j += 8) {  // 枚举每八列
       // 这里用这些临时(寄存器)变量，如果你查看过A和B的地址的话，你会发现A和B的地址差距是64的整数倍（0x40000），
       // 那么 直接赋值的话，在对角线的时候 每一个Load A[i][i]紧跟Store
       // B[i][i],将造成比较多的 eviction
@@ -58,9 +57,8 @@ void solve_32(int M, int N, int A[N][M], int B[M][N]) {
         int temp6 = A[i][j + 5];
         int temp7 = A[i][j + 6];
         int temp8 = A[i][j + 7];
-
-        B[j][i] =
-            temp1;  // 第一次 这八个都会 miss,后面就会命中，当然对角线有些例外
+        // 第一次 这八个都会 miss,后面就会命中，当然对角线有些例外
+        B[j][i] = temp1;
         B[j + 1][i] = temp2;
         B[j + 2][i] = temp3;
         B[j + 3][i] = temp4;
@@ -75,10 +73,8 @@ void solve_32(int M, int N, int A[N][M], int B[M][N]) {
 }
 // 这是4*4的优化版本，具体思想是，尽量多地利用整个cache
 void solve_64(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j;
-
-  for (i = 0; i < N; i += 8) {    // 枚举每八行
-    for (j = 0; j < M; j += 8) {  // 枚举每八列
+  for (int i = 0; i < N; i += 8) {    // 枚举每八行
+    for (int j = 0; j < M; j += 8) {  // 枚举每八列
       // 这里用这些临时变量，如果你查看过A和B的地址的话，你会发现A和B的地址差距是64的整数倍（0x40000），
       // 那么 直接赋值的话，在对角线的时候 每一个Load A[i][i]紧跟Store
       // B[i][i],将造成比较多的 eviction
@@ -86,9 +82,9 @@ void solve_64(int M, int N, int A[N][M], int B[M][N]) {
       // 1块8*8，我们分成4块来做，每一块4*4
       // 这是 左上，且将左下的块移动到 B中的右上，这样是为了更高效地利用cache
       for (cnt = 0; cnt < 4; ++cnt, ++i) {  // 枚举0~8中的每一行，一行八列
-        temp1 =
-            A[i][j];  // 这样我们就一次取出了8个元素，我们的A的miss就只有一次了
-                      // 原始4*4 则是两次
+        temp1 = A[i][j];
+        // 这样我们就一次取出了8个元素，我们的A的miss就只有一次了
+        // 原始4*4 则是两次
         temp2 = A[i][j + 1];
         temp3 = A[i][j + 2];
         temp4 = A[i][j + 3];  // 左上
@@ -131,14 +127,13 @@ void solve_64(int M, int N, int A[N][M], int B[M][N]) {
         // 所以每次带来的 eviction 和 store B[j][i +
         // 4]只会带来一次MISS，和原来的操作是一样的
 
-        B[j + 4][i] = temp5;  // 将原B右上 赋值到 B左下，
-                              // 这样A右上也就完成了翻转
+        B[j + 4][i] = temp5;
+        // 将原B右上 赋值到 B左下， 这样A右上也就完成了翻转
         B[j + 4][i + 1] = temp6;
         B[j + 4][i + 2] = temp7;
         B[j + 4][i + 3] = temp8;
       }
-      j -= 4;
-      j += 4;  // 处理第四块 右下
+      // 处理第四块 右下
       for (i += 4, cnt = 0; cnt < 4; ++cnt, ++i) {
         temp1 = A[i][j];  // 第四块没有任何改动， 和原来效果是一样的
         temp2 = A[i][j + 1];
@@ -157,11 +152,11 @@ void solve_64(int M, int N, int A[N][M], int B[M][N]) {
 // 这个题我没有什么好的做法，因为大小是61*67了，所以A，B相同的组索引也不那么紧密了，所以我们可以不用考虑对角线的情况
 // 不断地猜测不同的分块所带来的效果。直到找到最好的
 void solve_61(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j;
-#define ex 17  // 17是我测出来最小的了 不过像 16,18，17，21这些也都是满分的
-  for (i = 0; i < N; i += ex) {    // 枚举每ex行
-    for (j = 0; j < M; j += ex) {  // 枚举每ex列
-                                   // 下面开始转置这个ex * ex 的块
+  const int ex = 17;
+  // 17是我测出来最小的了 不过像 16,18，17，21这些也都是满分的
+  for (int i = 0; i < N; i += ex) {    // 枚举每ex行
+    for (int j = 0; j < M; j += ex) {  // 枚举每ex列
+                                       // 下面开始转置这个ex * ex 的块
       for (int x = i; x < N && x < i + ex; ++x)
         for (int y = j; y < M && y < j + ex; ++y) B[y][x] = A[x][y];
     }
@@ -170,10 +165,8 @@ void solve_61(int M, int N, int A[N][M], int B[M][N]) {
 
 void partB(int M, int N, int A[N][M], int B[M][N]) {}
 void transpose_submit3(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j;
-
-  for (i = 0; i < N; i += 8) {    // 枚举每八行
-    for (j = 0; j < M; j += 4) {  // 枚举每八列
+  for (int i = 0; i < N; i += 8) {    // 枚举每八行
+    for (int j = 0; j < M; j += 4) {  // 枚举每八列
       int temp1, temp2, temp3, temp4, t5, t6, t7, t8;
       for (int k = i; k < i + 8; ++k) {  // 枚举0~8中的每一行，一行八列
 
@@ -204,10 +197,8 @@ void transpose_submit3(int M, int N, int A[N][M], int B[M][N]) {
 }
 
 void transpose_submit2(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j;
-
-  for (i = 0; i < N; i += 8) {           // 枚举每八行
-    for (j = 0; j < M; j += 8) {         // 枚举每八列
+  for (int i = 0; i < N; i += 8) {       // 枚举每八行
+    for (int j = 0; j < M; j += 8) {     // 枚举每八列
       for (int k = i; k < i + 8; ++k) {  // 枚举0~8中的每一行，一行八列
         int temp1 = A[k][j];
         int temp2 = A[k][j + 1];
@@ -251,11 +242,9 @@ void transpose_submit2(int M, int N, int A[N][M], int B[M][N]) {
  */
 char trans_desc[] = "Simple row-wise scan transpose";
 void trans(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j, tmp;
-
-  for (i = 0; i < N; i++) {
-    for (j = 0; j < M; j++) {
-      tmp = A[i][j];
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < M; j++) {
+      int tmp = A[i][j];
       B[j][i] = tmp;
     }
   }
@@ -282,10 +271,8 @@ void registerFunctions() {
  *     it before returning from the transpose function.
  */
 int is_transpose(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j;
-
-  for (i = 0; i < N; i++) {
-    for (j = 0; j < M; ++j) {
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < M; ++j) {
       if (A[i][j] != B[j][i]) {
         return 0;
       }
