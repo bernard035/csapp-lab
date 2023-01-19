@@ -389,11 +389,11 @@ void sigchld_handler(int sig) {
  */
 void sigint_handler(int sig) {
   int olderrno = errno;
-  int pid;
   sigset_t mask_all, prev;
   Sigfillset(&mask_all);
   Sigprocmask(SIG_BLOCK, &mask_all, &prev);
-  if ((pid = fgpid(jobs)) != 0) {
+  int pid = fgpid(jobs);
+  if (pid != 0) {
     Sigprocmask(SIG_SETMASK, &prev, NULL);
     Kill(-pid, SIGINT);
   }
@@ -411,8 +411,8 @@ void sigtstp_handler(int sig) {
   sigset_t mask_all, prev;
   Sigfillset(&mask_all);
   Sigprocmask(SIG_BLOCK, &mask_all, &prev);
-  int pid;
-  if ((pid = fgpid(jobs)) > 0) {
+  int pid = fgpid(jobs);
+  if (pid > 0) {
     Sigprocmask(SIG_SETMASK, &prev, NULL);
     Kill(-pid, SIGSTOP);
   }
