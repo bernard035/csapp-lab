@@ -1,10 +1,13 @@
 #include <stdio.h>
 
 #include "csapp.h"
+#include "sbuf.h"
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
-
+#define SBUFSIZE 16
+#define NTHREADS 4
+sbuf_t sbuf;  // 连接缓冲区
 struct Uri {
   char host[MAXLINE];  // hostname
   char port[MAXLINE];  // 端口
@@ -14,44 +17,57 @@ struct Uri {
 void doit(int connfd);
 void parse_uri(char *uri, struct Uri *uri_data);
 void build_header(char *http_header, struct Uri *uri_data, rio_t *client_rio);
-
+void *thread(void *vargp);
 /* 处理SIGPIPE信号 */
 void sigpipe_handler(int sig) {
   printf("haha?");
   return;
 }
 
-int main(int argc, char **argv) {  // 代码与 TINY服务器代码完全相同
+int main(int argc, char **argv) {
   int listenfd, connfd;
   socklen_t clientlen;
   char hostname[MAXLINE], port[MAXLINE];
 
   struct sockaddr_storage clientaddr;
+
+  pthread_t tid;
+
   if (argc != 2) {
     fprintf(stderr, "usage :%s <port> \n", argv[0]);
     exit(1);
   }
   signal(SIGPIPE, sigpipe_handler);
   listenfd = Open_listenfd(argv[1]);
+
+  sbuf_init(&sbuf, SBUFSIZE);
+  // 创建工作者线程
+  for (int i = 0; i < NTHREADS; i++) {
+    Pthread_create(&tid, NULL, thread, NULL);
+  }
+
   while (1) {
     clientlen = sizeof(clientaddr);
     connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-
+    sbuf_insert(&sbuf, connfd);
     Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE,
                 0);
     printf("Accepted connection from (%s %s).\n", hostname, port);
-
-    doit(connfd);
-    // 关闭客户端的连接描述符
-    Close(connfd);
   }
   return 0;
 }
 
+void *thread(void *vargp) {
+  Pthread_detach(pthread_self());
+  while (1) {
+    int connfd = sbuf_remove(&sbuf);
+    doit(connfd);
+    // 关闭客户端的连接描述符
+    Close(connfd);
+  }
+}
+
 void doit(int connfd) {
-  // doit函数前半部分与 TINY 服务器相似
-  // 不同的是将后半部分的请求处理改为转发给服务器，再将服务器的回复回复给客户端
-  
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
   char server[MAXLINE];
 
